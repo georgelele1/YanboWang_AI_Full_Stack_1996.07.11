@@ -12,6 +12,7 @@ COPY . .
 # Generate Prisma client (schema is baked into the image for db push at startup)
 RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV BUILD_STANDALONE=1
 # DATABASE_URL not needed at build time — standalone output has no DB calls
 RUN npm run build
 
