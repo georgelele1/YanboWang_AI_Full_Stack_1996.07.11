@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --brand-primary: #F97316;
+  --brand-primary-dark: #EA580C;
+  --brand-primary-light: #FDBA74;
+  --accent-purple: #8b5cf6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Progress bar animation */
+.progress-bar {
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Option card hover states */
+.option-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.option-card:hover {
+  transform: translateY(-2px);
+}
+
+.option-card.selected {
+  border-color: var(--brand-primary);
+  background-color: #f0fdf4;
+}
+
+/* Smooth step transitions */
+.step-enter {
+  animation: fadeSlideIn 0.35s ease-out forwards;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Blur paywall effect */
+.paywall-blur {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--brand-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* BMI gauge */
+.bmi-track {
+  background: linear-gradient(to right, #3b82f6, #22c55e, #f59e0b, #ef4444);
+  border-radius: 9999px;
+}
+
+.checkout-input {
+  width: 100%;
+  border: 2px solid #334155;
+  border-radius: 0.75rem;
+  background: #0f172a;
+  padding: 0.8rem 0.9rem;
+  color: #f8fafc;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.checkout-input:focus {
+  border-color: var(--brand-primary);
+}
+
+.checkout-input::placeholder {
+  color: #64748b;
+}
+
+/* Warm, editorial onboarding system. */
+.onboarding-step > div > h2 {
+  color: #2d241e;
+  font-size: 2rem;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+
+.onboarding-step > div > p {
+  color: #74695e;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.onboarding-flow .bg-orange-500,
+.onboarding-flow .bg-orange-500\/100 {
+  background-color: #34271f;
+}
+
+.onboarding-flow .hover\:bg-orange-600:hover {
+  background-color: #4b382c;
+}
+
+.onboarding-flow .text-orange-400,
+.onboarding-flow .text-orange-300 {
+  color: #7c5c45;
+}
+
+.onboarding-flow .bg-orange-500\/10 {
+  background-color: #f2eee8;
+}
+
+.onboarding-flow .border-orange-500\/30 {
+  border-color: #dacdc0;
+}
+
+.onboarding-flow input::placeholder {
+  color: #a1968b;
+}
+
+/* Hide the legacy static badge copy and expose the real paid access state. */
+.subscription-status {
+  font-size: 0;
+}
+
+.subscription-status::after {
+  content: 'Free trial active';
+  font-size: 0.75rem;
+}
+
+.subscription-status.is-paid::after {
+  content: 'Premium active';
+}

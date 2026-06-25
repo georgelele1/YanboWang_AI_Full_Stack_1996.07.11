@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// User — identified by email (collected step 8)
+// One user can have many quiz sessions over time
+// ─────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions     Session[]
+  subscription Subscription?
+}
+
+// ─────────────────────────────────────────────
+// Session — one quiz attempt
+// Anonymous until email is provided at step 8.
+// expiresAt: set 2 days after trial ends if user
+// never subscribes; data purged after this date.
+// ─────────────────────────────────────────────
+model Session {
+  id          String    @id @default(cuid())
+  accessTokenHash String? @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  expiresAt   DateTime? // null = permanent; set when trial expires unsubscribed
+
+  // Linked to User once email is captured (step 8)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  currentStep Int      @default(0)
+  version     Int      @default(0)
+  isCompleted Boolean  @default(false)
+  quizData    Json     @default("{}")
+
+  result HealthResult?
+
+  @@index([userId])
+  @@index([expiresAt]) // for efficient cleanup queries
+}
+
+// ─────────────────────────────────────────────
+// HealthResult — server-computed assessment
+// Cascades on session delete (data purge)
+// ─────────────────────────────────────────────
+model HealthResult {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String  @unique
+
+  bmi                      Float
+  bmiCategory              String
+  dailyCalories            Int
+  proteinGrams             Int
+  carbGrams                Int
+  fatGrams                 Int
+  weeklyWeightLossForecast Float
+  weeksToGoal              Int
+  targetDate               DateTime
+  weeklyProjection         Json @default("[]")
+
+  @@index([sessionId])
+}
+
+// Curated exercise video library. The video metadata is always visible to an
+// authenticated assessment session; playback URLs are released by the videos
+// API only for preview videos or active paid subscriptions.
+model Video {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  description     String
+  category        String
+  durationSeconds Int
+  thumbnailUrl    String
+  videoUrl        String
+  isFreePreview   Boolean  @default(false)
+  sortOrder       Int      @default(0)
+  isPublished     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@index([category])
+}
+
+// ─────────────────────────────────────────────
+// Subscription — belongs to User (not Session)
+// so it persists across multiple quiz attempts.
+//
+// Status flow:
+//   TRIAL → (expires) → TRIAL_EXPIRED
+//   TRIAL / TRIAL_EXPIRED → (pay) → ACTIVE
+//   ACTIVE → (expires) → EXPIRED
+// ─────────────────────────────────────────────
+model Subscription {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status      SubscriptionStatus @default(TRIAL)
+  plan        String?            // "monthly" | "yearly"
+  trialEndsAt DateTime           // when free trial access ends
+  activatedAt DateTime?          // when paid subscription started
+  expiresAt   DateTime?          // when paid subscription expires
+
+  @@index([status])
+  @@index([trialEndsAt])
+}
+
+enum SubscriptionStatus {
+  TRIAL         // within trial window — full access
+  TRIAL_EXPIRED // trial over, not subscribed — limited + promo shown
+  ACTIVE        // paying subscriber — full access
+  EXPIRED       // paid plan lapsed
+  CANCELLED
+}
