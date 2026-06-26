@@ -111,6 +111,6 @@ export async function POST(req: NextRequest) {
       ...(isFreeTrial ? { trialEndsAt: subscription.trialEndsAt, trialStarted: true } : { activatedAt: subscription.activatedAt, expiresAt: subscription.expiresAt }),
     })
   } catch (err) {
-    return serverError('[POST /api/submitPlan]', err, 'Payment processing failed')
+    return serverError('[POST /api/pay]', err, 'Payment processing failed')
   }
 }

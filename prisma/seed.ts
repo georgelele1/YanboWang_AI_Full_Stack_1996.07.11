@@ -5,8 +5,10 @@
 
 import { PrismaClient, Prisma } from '@prisma/client'
 import { calculateHealthAssessment } from '../src/lib/health-calculator'
+import { hashSessionAccessToken } from '../src/lib/session-access'
 
 const prisma = new PrismaClient()
+const DEMO_ACCESS_TOKEN = 'reviewer-demo-token'
 
 const RESULT_DATA = {
   age: 34,                          // exact age — used in BMR calculation
@@ -82,8 +84,9 @@ async function createSession(
   await prisma.session.create({
     data: {
       id,
+      accessTokenHash: hashSessionAccessToken(DEMO_ACCESS_TOKEN),
       userId: user.id,
-      currentStep: 8,
+      currentStep: 12,
       isCompleted: true,
       expiresAt,
       quizData: QUIZ_DATA,
@@ -131,13 +134,16 @@ REVIEWER DEMO
 Compare access states:
 
   # Trial user (full access, 2 days left):
-  curl http://localhost:3000/api/results/demo-trial-active
+  curl http://localhost:3000/api/results/demo-trial-active \\
+    -H "Cookie: healthpath_session_demo-trial-active=${DEMO_ACCESS_TOKEN}"
 
   # Trial expired (limited + deletion warning):
-  curl http://localhost:3000/api/results/demo-trial-expired
+  curl http://localhost:3000/api/results/demo-trial-expired \\
+    -H "Cookie: healthpath_session_demo-trial-expired=${DEMO_ACCESS_TOKEN}"
 
   # Paid subscriber (full access):
-  curl http://localhost:3000/api/results/demo-paid
+  curl http://localhost:3000/api/results/demo-paid \\
+    -H "Cookie: healthpath_session_demo-paid=${DEMO_ACCESS_TOKEN}"
 
 Simulate payment (upgrades trial-expired → active):
   curl -X POST http://localhost:3000/api/pay \\

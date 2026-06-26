@@ -1219,7 +1219,7 @@ function GoalDateQuestion({
 
       <button disabled={!isValidWeeks || !isValidDate} onClick={onNext}
         className="mt-6 w-full bg-orange-500 hover:bg-orange-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl transition-all">
-        Continue 鈫?
+        Continue →
       </button>
     </div>
   )

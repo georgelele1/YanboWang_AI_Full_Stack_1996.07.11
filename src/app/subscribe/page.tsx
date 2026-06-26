@@ -68,7 +68,7 @@ function CheckoutForm() {
         throw new Error(body.error || 'Unable to create your account')
       }
 
-      const paymentResponse = await fetch('/api/submitPlan', {
+      const paymentResponse = await fetch('/api/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, plan, idempotencyKey: crypto.randomUUID() }),

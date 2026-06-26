@@ -88,19 +88,20 @@ yearly
 
 ### 4. 已支付测试 session
 
-建议在线上数据库提前准备一个已支付 session，方便评审直接对比付费前后返回差异。
+运行 seed 后会生成固定 demo session，方便评审直接对比付费前后返回差异。
 
 ```text
-Free sessionId: demo-free
-Trial sessionId: demo-trial
+Trial active sessionId: demo-trial-active
+Trial expired sessionId: demo-trial-expired
 Paid sessionId: demo-paid
+Reviewer cookie token: reviewer-demo-token
 ```
 
 示例验证：
 
 ```bash
 curl https://your-app.vercel.app/api/results/demo-paid \
-  -H "Cookie: healthpath_session_demo-paid=<token>"
+  -H "Cookie: healthpath_session_demo-paid=reviewer-demo-token"
 ```
 
 如果没有提供 cookie，接口会拒绝访问，这是因为项目使用 HttpOnly cookie 做 session 权限校验，避免只靠 URL 中的 sessionId 读取用户数据。
