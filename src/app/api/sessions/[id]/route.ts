@@ -1,34 +1,21 @@
-/**
- * GET /api/sessions/:id
- *
- * Returns the session with current progress -- used for page-refresh / back-navigation recovery.
- * The client reads currentStep and quizData to restore the UI state.
- */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { hasSessionAccess } from '@/lib/session-access'
+
+import { NextRequest } from 'next/server'
+import { jsonError, serverError, jsonOk } from '@/lib/api-response'
+import { getAuthorizedSession } from '@/lib/api-session'
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
   try {
-    const session = await prisma.session.findUnique({
-      where: { id: params.id },
-      include: { user: { include: { subscription: true } } },
-    })
-
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
-    if (!hasSessionAccess(req, session.id, session.accessTokenHash)) {
-      return NextResponse.json({ error: 'Session access denied' }, { status: 401 })
-    }
+    const sessionResult = await getAuthorizedSession(req, params.id)
+    if (!sessionResult.success) return jsonError(sessionResult.error, sessionResult.status)
+    const session = sessionResult.session
 
     const sub = session.user?.subscription ?? null
 
-    return NextResponse.json({
+    return jsonOk({
       id: session.id,
       currentStep: session.currentStep,
       version: session.version,
@@ -37,7 +24,6 @@ export async function GET(
       subscription: sub ? { status: sub.status } : null,
     })
   } catch (err) {
-    console.error('[GET /api/sessions/:id]', err)
-    return NextResponse.json({ error: 'Failed to fetch session' }, { status: 500 })
+    return serverError('[GET /api/sessions/:id]', err, 'Failed to fetch session')
   }
 }

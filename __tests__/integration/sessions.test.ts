@@ -48,6 +48,12 @@ async function createTestSession(): Promise<string> {
   return data.id
 }
 
+function futureDate(days = 84): string {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 const COMPLETE_QUIZ_DATA = [
   { step: 1,  data: { gender: 'female' } },
   { step: 2,  data: { age: 34 } },
@@ -58,7 +64,9 @@ const COMPLETE_QUIZ_DATA = [
   { step: 7,  data: { targetWeightKg: 60 } },
   { step: 8,  data: { activityLevel: 'moderate' } },
   { step: 9,  data: { dietPreference: 'no_preference' } },
-  { step: 10, data: { email: 'test@example.com' } },
+  { step: 10, data: { targetDate: futureDate(), targetTimelineWeeks: 12 } },
+  { step: 11, data: { motivation: 'wedding', motivationDetail: 'Wedding photos' } },
+  { step: 12, data: { email: 'test@example.com' } },
 ]
 
 // ── Session creation ────────────────────────────────────────────────────────

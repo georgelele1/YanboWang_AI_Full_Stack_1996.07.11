@@ -1,21 +1,7 @@
-/**
- * Request-level validation for API routes.
- *
- * Quiz now has 10 steps:
- *   1  Gender
- *   2  Age
- *   3  Goal
- *   4  Focus Area (multiple choice, options depend on goal)
- *   5  Activity Type Preference (multiple choice)
- *   6  Height + Weight
- *   7  Target Weight
- *   8  Activity Level
- *   9  Diet Preference
- *  10  Email
- */
 
-import type { ActivityLevel, ActivityType, AgeGroup, DietPreference, FocusArea, Gender, Goal, QuizData } from '@/types/quiz'
-import { ageToGroup } from '@/types/quiz'
+
+import type { ActivityLevel, ActivityType, AgeGroup, DietPreference, FocusArea, Gender, Goal, GoalMotivation, QuizData } from '@/types/quiz'
+import { getAgeGroup } from '@/types/quiz'
 
 const BMI_WARN_MIN = 15
 const BMI_WARN_MAX = 60
@@ -24,6 +10,10 @@ const VALID_GENDERS: Gender[]              = ['male', 'female']
 const VALID_GOALS: Goal[]                  = ['lose_weight', 'tone_up', 'build_strength', 'improve_health']
 const VALID_ACTIVITY_LEVELS: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active']
 const VALID_DIET_PREFS: DietPreference[]   = ['no_preference', 'vegetarian', 'vegan', 'keto', 'paleo']
+const VALID_MOTIVATIONS: GoalMotivation[] = [
+  'wedding', 'conference', 'vacation', 'health_check',
+  'confidence', 'family', 'sports_event', 'other',
+]
 
 const VALID_FOCUS_AREAS: Record<Goal, FocusArea[]> = {
   lose_weight:     ['belly_fat', 'thighs_hips', 'arms', 'full_body_slim'],
@@ -45,12 +35,21 @@ export interface FieldError {
 const STEP_FIELDS: Record<number, readonly string[]> = {
   1: ['gender'], 2: ['age'], 3: ['goal'], 4: ['focusAreas'], 5: ['activityTypes'],
   6: ['heightCm', 'weightKg'], 7: ['targetWeightKg'], 8: ['activityLevel'],
-  9: ['dietPreference'], 10: ['email'],
+  9: ['dietPreference'], 10: ['targetDate', 'targetTimelineWeeks'],
+  11: ['motivation', 'motivationDetail'], 12: ['email'],
 }
 
 export function normalizeStepData(step: number, data: Record<string, unknown>): Record<string, unknown> {
   const normalized = { ...data }
-  const numericFields = step === 2 ? ['age'] : step === 6 ? ['heightCm', 'weightKg'] : step === 7 ? ['targetWeightKg'] : []
+  const numericFields = step === 2
+    ? ['age']
+    : step === 6
+      ? ['heightCm', 'weightKg']
+      : step === 7
+        ? ['targetWeightKg']
+        : step === 10
+          ? ['targetTimelineWeeks']
+          : []
   for (const field of numericFields) {
     if (typeof normalized[field] === 'string' && normalized[field].trim() !== '') {
       normalized[field] = Number(normalized[field])
@@ -63,7 +62,7 @@ export function validateStepData(step: number, data: Record<string, unknown>): F
   const errors: FieldError[] = []
 
   const allowedFields = STEP_FIELDS[step]
-  if (!allowedFields) return [{ field: 'step', message: 'Step must be between 1 and 10' }]
+  if (!allowedFields) return [{ field: 'step', message: 'Step must be between 1 and 12' }]
   for (const field of Object.keys(data)) {
     if (!allowedFields.includes(field)) {
       errors.push({ field, message: `Field is not allowed for step ${step}` })
@@ -91,12 +90,10 @@ export function validateStepData(step: number, data: Record<string, unknown>): F
       break
     }
     case 4: {
-      // Focus areas -- must be array with at least 1 valid value for the given goal
       const areas = data.focusAreas
       if (!Array.isArray(areas) || areas.length === 0) {
         errors.push({ field: 'focusAreas', message: 'Select at least one focus area' })
       } else {
-        // We validate individual values; goal context not available here so accept any valid FocusArea
         const allValid = Object.values(VALID_FOCUS_AREAS).flat() as string[]
         const invalid = (areas as string[]).filter(a => !allValid.includes(a))
         if (invalid.length > 0) {
@@ -106,7 +103,6 @@ export function validateStepData(step: number, data: Record<string, unknown>): F
       break
     }
     case 5: {
-      // Activity types -- must be array with at least 1 valid value
       const types = data.activityTypes
       if (!Array.isArray(types) || types.length === 0) {
         errors.push({ field: 'activityTypes', message: 'Select at least one activity type' })
@@ -123,7 +119,6 @@ export function validateStepData(step: number, data: Record<string, unknown>): F
       const w = safeFloat(data.weightKg)
       if (h === null || h < 100 || h > 250) errors.push({ field: 'heightCm', message: 'Must be a number between 100 and 250' })
       if (w === null || w < 30  || w > 300) errors.push({ field: 'weightKg', message: 'Must be a number between 30 and 300' })
-      // BMI out-of-range is a soft warning only -- see getBmiWarning()
       break
     }
     case 7: {
@@ -146,6 +141,35 @@ export function validateStepData(step: number, data: Record<string, unknown>): F
       break
     }
     case 10: {
+      const timelineWeeks = safeInt(data.targetTimelineWeeks)
+      const targetDate = data.targetDate
+      if (timelineWeeks === null || timelineWeeks < 2 || timelineWeeks > 104) {
+        errors.push({ field: 'targetTimelineWeeks', message: 'Timeline must be between 2 and 104 weeks' })
+      }
+      if (typeof targetDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+        errors.push({ field: 'targetDate', message: 'Target date must use YYYY-MM-DD format' })
+      } else {
+        const parsed = new Date(`${targetDate}T00:00:00.000Z`)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        if (Number.isNaN(parsed.getTime()) || parsed <= today) {
+          errors.push({ field: 'targetDate', message: 'Target date must be in the future' })
+        }
+      }
+      break
+    }
+    case 11: {
+      if (!VALID_MOTIVATIONS.includes(data.motivation as GoalMotivation)) {
+        errors.push({ field: 'motivation', message: `Must be one of: ${VALID_MOTIVATIONS.join(', ')}` })
+      }
+      if (data.motivationDetail !== undefined && data.motivationDetail !== null) {
+        if (typeof data.motivationDetail !== 'string' || data.motivationDetail.length > 160) {
+          errors.push({ field: 'motivationDetail', message: 'Motivation detail must be 160 characters or less' })
+        }
+      }
+      break
+    }
+    case 12: {
       if (data.email !== undefined && data.email !== null && data.email !== '') {
         if (typeof data.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
           errors.push({ field: 'email', message: 'Invalid email address format' })
@@ -154,7 +178,7 @@ export function validateStepData(step: number, data: Record<string, unknown>): F
       break
     }
     default:
-      errors.push({ field: 'step', message: 'Step must be between 1 and 10' })
+      errors.push({ field: 'step', message: 'Step must be between 1 and 12' })
   }
 
   return errors
@@ -177,7 +201,7 @@ export function safeInt(value: unknown): number | null {
 export function mergeQuizData(existing: QuizData, incoming: Partial<QuizData>): QuizData {
   const merged = { ...existing, ...incoming }
   if (merged.age !== undefined && merged.age > 0) {
-    merged.ageGroup = ageToGroup(merged.age)
+    merged.ageGroup = getAgeGroup(merged.age)
   }
   return merged
 }
@@ -210,5 +234,7 @@ export function isQuizComplete(data: QuizData): boolean {
   if (!data.heightCm || data.heightCm <= 0) return false
   if (!data.weightKg || data.weightKg <= 0) return false
   if (!data.targetWeightKg || data.targetWeightKg <= 0) return false
+  if (!data.targetDate || !data.targetTimelineWeeks) return false
+  if (!data.motivation) return false
   return true
 }

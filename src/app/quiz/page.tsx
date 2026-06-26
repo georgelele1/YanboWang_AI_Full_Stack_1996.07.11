@@ -10,16 +10,13 @@ import type {
   FocusArea,
   Gender,
   Goal,
+  GoalMotivation,
   QuizData,
 } from '@/types/quiz'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
 const SESSION_KEY = 'healthpath_session_id'
 
-function getOrCreateSessionId(): string {
+function getSessionId(): string {
   if (typeof window === 'undefined') return ''
   let id = localStorage.getItem(SESSION_KEY)
   if (!id) {
@@ -28,11 +25,6 @@ function getOrCreateSessionId(): string {
   }
   return id
 }
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Age-group illustrated figures  (SVG, no external images)
-// ─────────────────────────────────────────────────────────────────────────────
 
 type AgeGroup = '18-29' | '30-39' | '40-49' | '50+'
 
@@ -56,7 +48,7 @@ const HAIR_BY_AGE: Record<AgeGroup, { style: HairStyle; color: string }> = {
   '50+':   { style: 'pixie',    color: '#9CA3AF' },
 }
 
-function FemaleAthletesvg({
+function FemaleFigure({
   hairStyle, hairColor, outfitColor, h = 190,
 }: {
   hairStyle: HairStyle; hairColor: string; outfitColor: string; h?: number
@@ -107,7 +99,7 @@ function FemaleAthletesvg({
   )
 }
 
-function MaleAthletesvg({
+function MaleFigure({
   hairStyle, hairColor, outfitColor, h = 190,
 }: {
   hairStyle: HairStyle; hairColor: string; outfitColor: string; h?: number
@@ -139,19 +131,16 @@ function MaleAthletesvg({
   )
 }
 
-function AgeFigureSVG({
+function AgeFigure({
   group, gender, outfitColor,
 }: {
   group: AgeGroup; gender?: 'male' | 'female'; outfitColor: string
 }) {
   const { style, color } = HAIR_BY_AGE[group]
   return gender === 'male'
-    ? <MaleAthletesvg   hairStyle={style} hairColor={color} outfitColor={outfitColor} />
-    : <FemaleAthletesvg hairStyle={style} hairColor={color} outfitColor={outfitColor} />
+    ? <MaleFigure   hairStyle={style} hairColor={color} outfitColor={outfitColor} />
+    : <FemaleFigure hairStyle={style} hairColor={color} outfitColor={outfitColor} />
 }
-
-// Photo paths match the exact filenames saved in /public/
-// e.g. /female18-29.png, /Male18-29.png
 const PHOTO_MAP: Record<string, string> = {
   'female-18-29': '/female18-29.png',
   'female-30-39': '/female30-39.png',
@@ -163,15 +152,13 @@ const PHOTO_MAP: Record<string, string> = {
   'male-50+':     '/male50+.png',
 }
 
-function AgeCardButton({
+function AgeCard({
   card, gender, selected, onSelect,
 }: {
   card: typeof AGE_CARDS[0]; gender?: 'male' | 'female'; selected: boolean; onSelect: () => void
 }) {
   const genderKey = gender ?? 'female'
   const photoSrc  = PHOTO_MAP[`${genderKey}-${card.group}`] ?? null
-
-  // Falls back to SVG if file not found
   const [photoOk, setPhotoOk] = React.useState(true)
 
   return (
@@ -185,7 +172,7 @@ function AgeCardButton({
       style={{ background: `linear-gradient(160deg, ${card.bgFrom}, ${card.bgTo})` }}
       aria-label={`Select age group ${card.label}`}
     >
-      {/* Photo or SVG fallback */}
+
       <div className="h-56 w-full overflow-hidden relative">
         {photoOk ? (
           <img
@@ -196,14 +183,14 @@ function AgeCardButton({
           />
         ) : (
           <div className="h-full flex items-end justify-center pt-3">
-            <AgeFigureSVG group={card.group} gender={gender} outfitColor={card.outfitColor} />
+            <AgeFigure group={card.group} gender={gender} outfitColor={card.outfitColor} />
           </div>
         )}
-        {/* Subtle gradient overlay so label bar blends in */}
+
         <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
       </div>
 
-      {/* Label bar */}
+
       <div className="flex items-center justify-between px-4 py-3 bg-black/75 backdrop-blur-sm">
         <span className="text-white font-bold text-sm">{card.label}</span>
         <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
@@ -217,12 +204,7 @@ function AgeCardButton({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Body silhouette — parameterised by BMI and gender
-// Used in steps 6 (current body) and 7 (before/after)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function bmiToWidthFactor(bmi: number): number {
+function getBodyWidth(bmi: number): number {
   if (bmi < 17)  return 0.65
   if (bmi < 20)  return 0.78
   if (bmi < 23)  return 0.88
@@ -233,21 +215,21 @@ function bmiToWidthFactor(bmi: number): number {
   return 1.58
 }
 
-function bmiColor(bmi: number): string {
-  if (bmi < 18.5) return '#60A5FA'  // blue — underweight
-  if (bmi < 25)   return '#34D399'  // green — normal
-  if (bmi < 30)   return '#FBBF24'  // amber — overweight
-  return '#F87171'                  // red — obese
+function getBmiColor(bmi: number): string {
+  if (bmi < 18.5) return '#60A5FA'
+  if (bmi < 25)   return '#34D399'
+  if (bmi < 30)   return '#FBBF24'
+  return '#F87171'
 }
 
-function bmiLabel(bmi: number): string {
+function getBmiLabel(bmi: number): string {
   if (bmi < 18.5) return 'Underweight'
   if (bmi < 25)   return 'Healthy weight'
   if (bmi < 30)   return 'Overweight'
   return 'Obese'
 }
 
-function BodySVG({
+function BodyFigure({
   gender = 'female',
   widthFactor: w,
   outfitColor,
@@ -258,32 +240,22 @@ function BodySVG({
 }) {
   const skin  = '#FECBA1'
   const dark  = '#1F2937'
-  const cx    = 60   // center-x inside 120-wide viewBox
-
-  // Torso measurements — capped so figure never bleeds past viewBox
-  const sh  = Math.min(18 * w, 24)  // shoulder half-width
-  const ws  = gender === 'female' ? Math.min(11 * w, 17) : sh  // waist (hourglass only for female)
-  const hp  = Math.min(20 * w, 26)  // hip half-width
-
-  // Arm starting x (outside shoulder), capped
+  const cx    = 60
+  const sh  = Math.min(18 * w, 24)
+  const ws  = gender === 'female' ? Math.min(11 * w, 17) : sh
+  const hp  = Math.min(20 * w, 26)
   const ax  = Math.min(cx + sh + 3, 84)
-
-  // Each leg drawn as a CLOSED PATH so there's always a visible gap between them.
-  // Leg centers: lx (left) and rx (right), always 11px either side of cx.
   const lx  = cx - 11
   const rx  = cx + 11
-  // Leg half-width scales mildly with BMI; gap is guaranteed by the fixed leg centers
   const lw  = Math.min(7 + 3.5 * (w - 0.65), 11)
-  const cw  = Math.min(5 + 2.5 * (w - 0.65),  9)  // calf is slimmer
-
-  // Thigh top y differs by gender (where trousers/skirt end)
+  const cw  = Math.min(5 + 2.5 * (w - 0.65),  9)
   const thighTopY = gender === 'female' ? 148 : 110
   const kneeY     = 175
   const ankleY    = 215
 
   return (
     <svg viewBox="0 0 120 235" className="w-full h-full" aria-hidden="true">
-      {/* ── Hair ── */}
+
       {gender === 'female' ? <>
         <ellipse cx={cx} cy="20" rx="21" ry="19" fill="#7C2D12" />
         <path d={`M39 28 Q32 65 36 96 Q41 72 44 52`} fill="#7C2D12" />
@@ -294,10 +266,10 @@ function BodySVG({
         <rect x={cx+12} y="24" width="7" height="9" rx="3" fill="#2D1B00" />
       </>}
 
-      {/* ── Head ── */}
+
       <ellipse cx={cx} cy={gender === 'female' ? 31 : 29} rx="19" ry="21" fill={skin} />
 
-      {/* ── Face ── */}
+
       <ellipse cx={cx-7} cy={gender === 'female' ? 29 : 27} rx="2.2" ry="2.8" fill={dark} />
       <ellipse cx={cx+7} cy={gender === 'female' ? 29 : 27} rx="2.2" ry="2.8" fill={dark} />
       <circle  cx={cx-6} cy={gender === 'female' ? 28 : 26} r="0.9" fill="white" />
@@ -305,52 +277,52 @@ function BodySVG({
       {gender === 'female' &&
         <path d={`M${cx-6} 40 Q${cx} 45 ${cx+6} 40`} stroke="#B45309" strokeWidth="1.5" strokeLinecap="round" fill="none" />}
 
-      {/* ── Neck ── */}
+
       <rect x={cx-6} y={gender === 'female' ? 49 : 47} width="12" height="12" rx="5" fill={skin} />
 
-      {/* ── Shoulders ── */}
+
       <ellipse cx={cx - sh - 3} cy="64" rx={gender === 'male' ? 12 : 9} ry="6" fill={outfitColor} />
       <ellipse cx={cx + sh + 3} cy="64" rx={gender === 'male' ? 12 : 9} ry="6" fill={outfitColor} />
 
-      {/* ── Torso ── */}
+
       {gender === 'female'
         ? <path d={`M${cx-sh} 58 Q${cx-sh-1} 76 ${cx-ws} 90 Q${cx-hp} 102 ${cx-hp} 110 L${cx+hp} 110 Q${cx+hp} 102 ${cx+ws} 90 Q${cx+sh+1} 76 ${cx+sh} 58 Z`} fill={outfitColor} />
         : <path d={`M${cx-sh-1} 58 Q${cx-sh+1} 82 ${cx-hp} 110 L${cx+hp} 110 Q${cx+sh-1} 82 ${cx+sh+1} 58 Z`} fill={outfitColor} />
       }
 
-      {/* ── Arms (skin-colored — no dark columns) ── */}
+
       <path d={`M${cx-sh-1} 62 Q${cx-ax+cx-sh+6} 88 ${cx-22} 122`} stroke={skin} strokeWidth="11" strokeLinecap="round" fill="none" />
       <path d={`M${cx+sh+1} 62 Q${ax-3} 88 ${cx+22} 122`} stroke={skin} strokeWidth="11" strokeLinecap="round" fill="none" />
 
-      {/* ── Female skirt panel (hips → thigh top) ── */}
+
       {gender === 'female' &&
         <path d={`M${cx-hp} 110 Q${cx-hp-3} 132 ${cx-hp-1} ${thighTopY} L${cx+hp+1} ${thighTopY} Q${cx+hp+3} 132 ${cx+hp} 110 Z`}
               fill={outfitColor} opacity="0.9" />}
 
-      {/* ── Left thigh (CLOSED PATH → always has gap to right leg) ── */}
+
       <path d={`M${lx-lw} ${thighTopY} Q${lx-lw+1} ${kneeY-10} ${lx-cw} ${kneeY} L${lx+cw} ${kneeY} Q${lx+lw-1} ${kneeY-10} ${lx+lw} ${thighTopY} Z`}
             fill={gender === 'female' ? outfitColor : dark} />
 
-      {/* ── Right thigh ── */}
+
       <path d={`M${rx-lw} ${thighTopY} Q${rx-lw+1} ${kneeY-10} ${rx-cw} ${kneeY} L${rx+cw} ${kneeY} Q${rx+lw-1} ${kneeY-10} ${rx+lw} ${thighTopY} Z`}
             fill={gender === 'female' ? outfitColor : dark} />
 
-      {/* ── Left calf (skin for female, dark for male) ── */}
+
       <path d={`M${lx-cw} ${kneeY} Q${lx-cw} ${ankleY-10} ${lx-cw+2} ${ankleY} L${lx+cw-2} ${ankleY} Q${lx+cw} ${ankleY-10} ${lx+cw} ${kneeY} Z`}
             fill={gender === 'female' ? skin : dark} />
 
-      {/* ── Right calf ── */}
+
       <path d={`M${rx-cw} ${kneeY} Q${rx-cw} ${ankleY-10} ${rx-cw+2} ${ankleY} L${rx+cw-2} ${ankleY} Q${rx+cw} ${ankleY-10} ${rx+cw} ${kneeY} Z`}
             fill={gender === 'female' ? skin : dark} />
 
-      {/* ── Shoes ── */}
+
       <ellipse cx={lx} cy={ankleY+3} rx={cw+4}  ry="4.5" fill={dark} />
       <ellipse cx={rx} cy={ankleY+3} rx={cw+4}  ry="4.5" fill={dark} />
     </svg>
   )
 }
 
-function BodyCard({
+function BodyPreview({
   label,
   gender,
   bmi,
@@ -362,25 +334,25 @@ function BodyCard({
   bmi: number; weightKg: number
   outfitColor?: string; isGoal?: boolean
 }) {
-  const wf = bmiToWidthFactor(bmi)
-  const col = bmiColor(bmi)
-  const lbl = bmiLabel(bmi)
+  const wf = getBodyWidth(bmi)
+  const col = getBmiColor(bmi)
+  const lbl = getBmiLabel(bmi)
 
   return (
     <div className={`flex flex-col rounded-2xl overflow-hidden border-2 transition-all
                      ${isGoal ? 'border-orange-400 shadow-lg shadow-orange-500/20' : 'border-slate-700'}`}>
-      {/* Label chip */}
+
       <div className={`px-3 py-1.5 text-center text-xs font-bold uppercase tracking-wide
                        ${isGoal ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-300'}`}>
         {label}
       </div>
 
-      {/* Figure */}
+
       <div className="bg-gradient-to-b from-gray-50 to-white px-2 pt-2 pb-0 h-44">
-        <BodySVG gender={gender} widthFactor={wf} outfitColor={isGoal ? '#34D399' : outfitColor} />
+        <BodyFigure gender={gender} widthFactor={wf} outfitColor={isGoal ? '#34D399' : outfitColor} />
       </div>
 
-      {/* Stats */}
+
       <div className="px-3 py-2 bg-slate-800 border-t border-slate-700">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs text-slate-400">BMI</span>
@@ -401,11 +373,7 @@ function BodyCard({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Option card (single select)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function OptionCard({
+function ChoiceCard({
   emoji, label, sublabel, selected, onClick,
 }: {
   emoji: string; label: string; sublabel?: string; selected: boolean; onClick: () => void
@@ -435,9 +403,7 @@ function OptionCard({
     </button>
   )
 }
-
-// Multi-select tile (checkbox style)
-function MultiCard({
+function MultiChoiceCard({
   emoji, label, selected, onClick,
 }: {
   emoji: string; label: string; selected: boolean; onClick: () => void
@@ -465,11 +431,7 @@ function MultiCard({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Progress bar
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ProgressBar({ step, total }: { step: number; total: number }) {
+function StepProgress({ step, total }: { step: number; total: number }) {
   return (
     <div className="flex h-1 w-full gap-1.5" aria-label={`Step ${step} of ${total}`}>
       {Array.from({ length: total }, (_, index) => (
@@ -479,11 +441,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Number input sub-component
-// ─────────────────────────────────────────────────────────────────────────────
-
-function NumberInput({
+function NumberField({
   label, unit, value, onChange, min, max, placeholder,
 }: {
   label: string; unit: string; value: string; onChange: (v: string) => void
@@ -509,11 +467,7 @@ function NumberInput({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Quiz Component
-// ─────────────────────────────────────────────────────────────────────────────
-
-const TOTAL_STEPS = 10
+const TOTAL_STEPS = 12
 
 class SessionConflictError extends Error {}
 
@@ -529,28 +483,25 @@ export default function QuizPage() {
   const [medicalWarning, setMedicalWarning] = useState<string | null>(null)
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null)
   const [showBrandMoment, setShowBrandMoment] = useState(false)
-
-  // Local form state
   const [ageVal, setAgeVal] = useState('')
   const [heightVal, setHeightVal] = useState('')
   const [weightVal, setWeightVal] = useState('')
   const [targetWeightVal, setTargetWeightVal] = useState('')
+  const [targetDateVal, setTargetDateVal] = useState('')
+  const [timelineWeeksVal, setTimelineWeeksVal] = useState('12')
+  const [motivationDetailVal, setMotivationDetailVal] = useState('')
   const [emailVal, setEmailVal] = useState('')
-  // Multi-select state
   const [focusAreas, setFocusAreas] = useState<FocusArea[]>([])
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([])
-
-  // ── Init: create/recover session ────────────────────────────────
   useEffect(() => {
-    async function init() {
-      // ?fresh=1 in the URL forces a brand-new session (used by "Retake Quiz" links)
+    async function loadSession() {
       const isFresh = typeof window !== 'undefined' &&
         new URLSearchParams(window.location.search).get('fresh') === '1'
       if (isFresh) {
         localStorage.removeItem(SESSION_KEY)
       }
 
-      const id = getOrCreateSessionId()
+      const id = getSessionId()
       setSessionId(id)
       try {
         const res = await fetch(`/api/sessions/${id}`)
@@ -558,9 +509,6 @@ export default function QuizPage() {
           const data = await res.json()
           setSessionVersion(data.version ?? 0)
           const qd = data.quizData ?? {}
-
-          // If this is a legacy session (ageGroup but no age) the new quiz
-          // can't complete it. Clear and restart so the user fills step 1 fresh.
           if (qd.ageGroup && !qd.age) {
             localStorage.removeItem(SESSION_KEY)
             const createRes = await fetch('/api/sessions', {
@@ -583,11 +531,12 @@ export default function QuizPage() {
             if (qd.heightCm)       setHeightVal(String(qd.heightCm))
             if (qd.weightKg)       setWeightVal(String(qd.weightKg))
             if (qd.targetWeightKg) setTargetWeightVal(String(qd.targetWeightKg))
+            if (qd.targetDate)     setTargetDateVal(String(qd.targetDate))
+            if (qd.targetTimelineWeeks) setTimelineWeeksVal(String(qd.targetTimelineWeeks))
+            if (qd.motivationDetail) setMotivationDetailVal(String(qd.motivationDetail))
             if (qd.focusAreas)     setFocusAreas(qd.focusAreas)
             if (qd.activityTypes)  setActivityTypes(qd.activityTypes)
           }
-
-          // Completed session — show choice screen instead of silent redirect
           if (data.isCompleted) {
             setCompletedSessionId(id)
             setIsLoading(false)
@@ -609,16 +558,13 @@ export default function QuizPage() {
           }
         }
       } catch {
-        // Non-fatal; continue without recovery
       } finally {
         setIsLoading(false)
       }
     }
-    init()
+    loadSession()
   }, [router])
-
-  // ── Save step to backend ──────────────────────────────────────
-  const saveStep = useCallback(async (step: number, data: Partial<QuizData>) => {
+  const saveAnswer = useCallback(async (step: number, data: Partial<QuizData>) => {
     if (!sessionId) return
     try {
       setIsSaving(true)
@@ -635,7 +581,6 @@ export default function QuizPage() {
       }
       const json = await res.json()
       setSessionVersion(json.version ?? sessionVersion)
-      // Step 6 carries height + weight -- check for BMI advisory
       if (step === 6) {
         if (json.medicalWarning) setMedicalWarning(json.medicalWarning)
       }
@@ -647,13 +592,11 @@ export default function QuizPage() {
       setIsSaving(false)
     }
   }, [sessionId, sessionVersion])
-
-  // ── Navigate to next step ─────────────────────────────────────
-  const goNext = useCallback(async (stepData: Partial<QuizData>) => {
+  const goToNextStep = useCallback(async (stepData: Partial<QuizData>) => {
     const merged = { ...quizData, ...stepData }
     setQuizData(merged)
     try {
-      await saveStep(currentStep, stepData)
+      await saveAnswer(currentStep, stepData)
       if (currentStep === TOTAL_STEPS) {
         setCurrentStep(TOTAL_STEPS + 1)
         setError(null)
@@ -675,7 +618,6 @@ export default function QuizPage() {
         if (!calcRes.ok) {
           const body = await calcRes.json().catch(() => ({}))
           setCurrentStep(TOTAL_STEPS)
-          // 422 Incomplete: some steps missing — restart from step 1
           if (calcRes.status === 422 && body.error?.toLowerCase().includes('incomplete')) {
             setError('Some answers are missing. Please restart the quiz.')
             setTimeout(() => {
@@ -689,7 +631,6 @@ export default function QuizPage() {
         }
         router.push(`/results/${sessionId}`)
       } else if (currentStep === 5) {
-        // This transition page is not persisted, preserving the API's ten-step contract.
         setShowBrandMoment(true)
       } else {
         setCurrentStep((s) => s + 1)
@@ -706,19 +647,19 @@ export default function QuizPage() {
           if (qd.heightCm) setHeightVal(String(qd.heightCm))
           if (qd.weightKg) setWeightVal(String(qd.weightKg))
           if (qd.targetWeightKg) setTargetWeightVal(String(qd.targetWeightKg))
+          if (qd.targetDate) setTargetDateVal(String(qd.targetDate))
+          if (qd.targetTimelineWeeks) setTimelineWeeksVal(String(qd.targetTimelineWeeks))
+          if (qd.motivationDetail) setMotivationDetailVal(String(qd.motivationDetail))
           if (qd.focusAreas) setFocusAreas(qd.focusAreas)
           if (qd.activityTypes) setActivityTypes(qd.activityTypes)
           setError('Your session changed in another tab. The latest saved answers were restored; please submit this step again.')
           return
         }
       }
-      // Do not advance optimistically. A failed persistence request must keep
-      // the user on the current question so the stored quiz cannot diverge
-      // from the visible form state.
     }
-  }, [currentStep, quizData, saveStep, sessionId, router])
+  }, [currentStep, quizData, saveAnswer, sessionId, router])
 
-  const goBack = () => {
+  const goToPreviousStep = () => {
     if (showBrandMoment) {
       setShowBrandMoment(false)
       return
@@ -726,18 +667,12 @@ export default function QuizPage() {
     setCurrentStep((s) => Math.max(1, s - 1))
   }
 
-  const startOver = () => {
+  const resetQuiz = () => {
     localStorage.removeItem(SESSION_KEY)
     window.location.reload()
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────
-
-  // Completed session — let the user choose to view or start fresh
   if (completedSessionId) {
-    return <CompletedSessionScreen sessionId={completedSessionId} onStartFresh={startOver} />
+    return <CompletedQuizScreen sessionId={completedSessionId} onStartFresh={resetQuiz} />
   }
 
   if (isLoading) {
@@ -752,38 +687,38 @@ export default function QuizPage() {
   }
 
   if (showBrandMoment) {
-    return <BrandMoment onBack={goBack} onContinue={() => {
+    return <BrandIntro onBack={goToPreviousStep} onContinue={() => {
       setShowBrandMoment(false)
       setCurrentStep(6)
     }} />
   }
 
-  if (currentStep === TOTAL_STEPS + 1) return <CalculatingScreen />
+  if (currentStep === TOTAL_STEPS + 1) return <LoadingPlanScreen />
 
   return (
     <div className="onboarding-flow min-h-screen bg-[#fcfbf8] text-[#2d241e] flex flex-col">
-      {/* Header */}
+
       <header className="border-b border-[#eee9e1] px-5 py-3 flex items-center justify-between w-full">
         <div className="flex items-center gap-2">
-          <button onClick={goBack} disabled={currentStep === 1} aria-label="Previous question" className="w-10 h-10 rounded-full border border-[#dfd8cf] flex items-center justify-center disabled:opacity-30 hover:bg-[#f3efe9]">
+          <button onClick={goToPreviousStep} disabled={currentStep === 1} aria-label="Previous question" className="w-10 h-10 rounded-full border border-[#dfd8cf] flex items-center justify-center disabled:opacity-30 hover:bg-[#f3efe9]">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18l-6-6 6-6" /></svg>
           </button>
           <Link href="/" className="font-extrabold text-xl tracking-[-0.05em] text-[#2d241e]">HealthPath</Link>
         </div>
         <div className="flex items-center gap-4">
           <span className="hidden sm:block text-sm font-semibold">Your profile</span>
-          <button onClick={startOver} className="text-sm text-[#776b60] hover:text-[#2d241e] transition-colors">
+          <button onClick={resetQuiz} className="text-sm text-[#776b60] hover:text-[#2d241e] transition-colors">
             Start over
           </button>
         </div>
       </header>
 
-      {/* Progress */}
+
       <div className="px-0 w-full pb-2">
-        <ProgressBar step={currentStep} total={TOTAL_STEPS} />
+        <StepProgress step={currentStep} total={TOTAL_STEPS} />
       </div>
 
-      {/* Step content */}
+
       <main className="onboarding-step flex-1 px-5 py-12 max-w-xl mx-auto w-full step-enter">
         {error && (
           <div className="mb-4 bg-red-900/20 border border-red-800 text-red-400 text-sm px-4 py-3 rounded-xl">
@@ -808,78 +743,104 @@ export default function QuizPage() {
           </div>
         )}
 
-        {/* Step 1: Gender */}
+
         {currentStep === 1 && (
-          <StepGender selected={quizData.gender} onSelect={(v) => goNext({ gender: v })} />
+          <GenderQuestion selected={quizData.gender} onSelect={(v) => goToNextStep({ gender: v })} />
         )}
-        {/* Step 2: Age (gender known now, so figures match) */}
+
         {currentStep === 2 && (
-          <StepAge
+          <AgeQuestion
             gender={quizData.gender}
             onSelect={(age) => {
               setAgeVal(String(age))
-              goNext({ age })
+              goToNextStep({ age })
             }}
           />
         )}
-        {/* Step 3: Goal */}
+
         {currentStep === 3 && (
-          <StepGoal selected={quizData.goal} onSelect={(v) => {
-            // Clear focus areas when goal changes
+          <GoalQuestion selected={quizData.goal} onSelect={(v) => {
             setFocusAreas([])
-            goNext({ goal: v })
+            goToNextStep({ goal: v })
           }} />
         )}
-        {/* Step 4: Focus Areas (goal-dependent) */}
+
         {currentStep === 4 && (
-          <StepFocusArea
+          <FocusQuestion
             goal={quizData.goal}
             selected={focusAreas}
             onChange={setFocusAreas}
-            onNext={() => goNext({ focusAreas })}
+            onNext={() => goToNextStep({ focusAreas })}
           />
         )}
-        {/* Step 5: Activity Type Preferences */}
+
         {currentStep === 5 && (
-          <StepActivityTypes
+          <ActivityChoiceQuestion
             selected={activityTypes}
             onChange={setActivityTypes}
-            onNext={() => goNext({ activityTypes })}
+            onNext={() => goToNextStep({ activityTypes })}
           />
         )}
-        {/* Step 6: Height + Weight */}
+
         {currentStep === 6 && (
-          <StepBodyData
+          <BodyMeasureQuestion
             heightVal={heightVal} weightVal={weightVal}
             onHeightChange={setHeightVal} onWeightChange={setWeightVal}
             gender={quizData.gender}
-            onNext={() => goNext({ heightCm: parseFloat(heightVal), weightKg: parseFloat(weightVal) })}
+            onNext={() => goToNextStep({ heightCm: parseFloat(heightVal), weightKg: parseFloat(weightVal) })}
           />
         )}
-        {/* Step 7: Target Weight */}
+
         {currentStep === 7 && (
-          <StepTargetWeight
+          <TargetWeightQuestion
             currentWeight={quizData.weightKg}
             heightCm={quizData.heightCm}
             gender={quizData.gender}
             targetVal={targetWeightVal}
             onChange={setTargetWeightVal}
-            onNext={() => goNext({ targetWeightKg: parseFloat(targetWeightVal) })}
+            onNext={() => goToNextStep({ targetWeightKg: parseFloat(targetWeightVal) })}
           />
         )}
-        {/* Step 8: Activity Level */}
+
         {currentStep === 8 && (
-          <StepActivity selected={quizData.activityLevel} onSelect={(v) => goNext({ activityLevel: v })} />
+          <ActivityLevelQuestion selected={quizData.activityLevel} onSelect={(v) => goToNextStep({ activityLevel: v })} />
         )}
-        {/* Step 9: Diet Preference */}
+
         {currentStep === 9 && (
-          <StepDiet selected={quizData.dietPreference} onSelect={(v) => goNext({ dietPreference: v })} />
+          <DietQuestion selected={quizData.dietPreference} onSelect={(v) => goToNextStep({ dietPreference: v })} />
         )}
-        {/* Step 10: Email */}
+
         {currentStep === 10 && (
-          <StepEmail
+          <GoalDateQuestion
+            targetDateVal={targetDateVal}
+            timelineWeeksVal={timelineWeeksVal}
+            currentWeight={quizData.weightKg}
+            targetWeight={quizData.targetWeightKg}
+            onTargetDateChange={setTargetDateVal}
+            onTimelineWeeksChange={setTimelineWeeksVal}
+            onNext={() => goToNextStep({
+              targetDate: targetDateVal,
+              targetTimelineWeeks: parseInt(timelineWeeksVal, 10),
+            })}
+          />
+        )}
+
+        {currentStep === 11 && (
+          <MotivationQuestion
+            selected={quizData.motivation}
+            detailVal={motivationDetailVal}
+            onDetailChange={setMotivationDetailVal}
+            onSelect={(motivation) => goToNextStep({
+              motivation,
+              motivationDetail: motivationDetailVal.trim() || undefined,
+            })}
+          />
+        )}
+
+        {currentStep === 12 && (
+          <EmailQuestion
             emailVal={emailVal} onChange={setEmailVal}
-            onNext={() => goNext({ ...(emailVal ? { email: emailVal } : {}) })}
+            onNext={() => goToNextStep({ ...(emailVal ? { email: emailVal } : {}) })}
             isSaving={isSaving}
           />
         )}
@@ -892,19 +853,14 @@ export default function QuizPage() {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Step components
-// ─────────────────────────────────────────────────────────────────────────────
-
-function StepAge({ gender, onSelect: onSelectAge }: {
+function AgeQuestion({ gender, onSelect: onSelectAge }: {
   gender?: 'male' | 'female'
   onSelect: (age: number) => void
 }) {
   const [selected, setSelected] = useState<AgeGroup | null>(null)
 
-  function pick(card: typeof AGE_CARDS[0]) {
+  function selectAgeCard(card: typeof AGE_CARDS[0]) {
     setSelected(card.group)
-    // Pass age value directly — avoids stale-closure bug from reading ageVal state
     setTimeout(() => onSelectAge(card.age), 240)
   }
 
@@ -916,12 +872,12 @@ function StepAge({ gender, onSelect: onSelectAge }: {
       </p>
       <div className="grid grid-cols-2 gap-3">
         {AGE_CARDS.map((card) => (
-          <AgeCardButton
+          <AgeCard
             key={card.group}
             card={card}
             gender={gender}
             selected={selected === card.group}
-            onSelect={() => pick(card)}
+            onSelect={() => selectAgeCard(card)}
           />
         ))}
       </div>
@@ -929,20 +885,20 @@ function StepAge({ gender, onSelect: onSelectAge }: {
   )
 }
 
-function StepGender({ selected, onSelect }: { selected?: Gender; onSelect: (v: Gender) => void }) {
+function GenderQuestion({ selected, onSelect }: { selected?: Gender; onSelect: (v: Gender) => void }) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-white mb-1">What is your biological sex?</h2>
       <p className="text-slate-400 text-sm mb-6">Used to calculate your baseline metabolic rate accurately.</p>
       <div className="flex flex-col gap-3">
-        <OptionCard emoji="♂️" label="Male" selected={selected === 'male'} onClick={() => onSelect('male')} />
-        <OptionCard emoji="♀️" label="Female" selected={selected === 'female'} onClick={() => onSelect('female')} />
+        <ChoiceCard emoji="♂️" label="Male" selected={selected === 'male'} onClick={() => onSelect('male')} />
+        <ChoiceCard emoji="♀️" label="Female" selected={selected === 'female'} onClick={() => onSelect('female')} />
       </div>
     </div>
   )
 }
 
-function StepGoal({ selected, onSelect }: { selected?: Goal; onSelect: (v: Goal) => void }) {
+function GoalQuestion({ selected, onSelect }: { selected?: Goal; onSelect: (v: Goal) => void }) {
   const options: { value: Goal; emoji: string; label: string; sublabel: string }[] = [
     { value: 'lose_weight',    emoji: '⬇️', label: 'Lose weight',           sublabel: 'Shed body fat with a caloric deficit' },
     { value: 'tone_up',       emoji: '✨',          label: 'Tone up',               sublabel: 'Reduce fat while maintaining muscle' },
@@ -955,15 +911,13 @@ function StepGoal({ selected, onSelect }: { selected?: Goal; onSelect: (v: Goal)
       <p className="text-slate-400 text-sm mb-6">Your plan is calibrated to this specific outcome.</p>
       <div className="flex flex-col gap-3">
         {options.map((o) => (
-          <OptionCard key={o.value} emoji={o.emoji} label={o.label} sublabel={o.sublabel}
+          <ChoiceCard key={o.value} emoji={o.emoji} label={o.label} sublabel={o.sublabel}
             selected={selected === o.value} onClick={() => onSelect(o.value)} />
         ))}
       </div>
     </div>
   )
 }
-
-// Focus areas are goal-dependent
 const FOCUS_OPTIONS: Record<Goal, { value: FocusArea; emoji: string; label: string }[]> = {
   lose_weight: [
     { value: 'belly_fat',    emoji: '🪆', label: 'Belly fat' },
@@ -991,7 +945,7 @@ const FOCUS_OPTIONS: Record<Goal, { value: FocusArea; emoji: string; label: stri
   ],
 }
 
-function StepFocusArea({ goal, selected, onChange, onNext }: {
+function FocusQuestion({ goal, selected, onChange, onNext }: {
   goal?: Goal
   selected: FocusArea[]
   onChange: (v: FocusArea[]) => void
@@ -1016,7 +970,7 @@ function StepFocusArea({ goal, selected, onChange, onNext }: {
       </p>
       <div className="grid grid-cols-2 gap-3">
         {options.map((o) => (
-          <MultiCard key={o.value} emoji={o.emoji} label={o.label}
+          <MultiChoiceCard key={o.value} emoji={o.emoji} label={o.label}
             selected={selected.includes(o.value)} onClick={() => toggle(o.value)} />
         ))}
       </div>
@@ -1043,7 +997,7 @@ const ACTIVITY_TYPE_OPTIONS: { value: ActivityType; emoji: string; label: string
   { value: 'sports',          emoji: '⚽',  label: 'Sports' },
 ]
 
-function StepActivityTypes({ selected, onChange, onNext }: {
+function ActivityChoiceQuestion({ selected, onChange, onNext }: {
   selected: ActivityType[]
   onChange: (v: ActivityType[]) => void
   onNext: () => void
@@ -1059,7 +1013,7 @@ function StepActivityTypes({ selected, onChange, onNext }: {
       </p>
       <div className="grid grid-cols-2 gap-3">
         {ACTIVITY_TYPE_OPTIONS.map((o) => (
-          <MultiCard key={o.value} emoji={o.emoji} label={o.label}
+          <MultiChoiceCard key={o.value} emoji={o.emoji} label={o.label}
             selected={selected.includes(o.value)} onClick={() => toggle(o.value)} />
         ))}
       </div>
@@ -1075,7 +1029,7 @@ function StepActivityTypes({ selected, onChange, onNext }: {
   )
 }
 
-function StepBodyData({ heightVal, weightVal, onHeightChange, onWeightChange, onNext, gender }: {
+function BodyMeasureQuestion({ heightVal, weightVal, onHeightChange, onWeightChange, onNext, gender }: {
   heightVal: string; weightVal: string
   onHeightChange: (v: string) => void; onWeightChange: (v: string) => void
   onNext: () => void; gender?: 'male' | 'female'
@@ -1089,10 +1043,10 @@ function StepBodyData({ heightVal, weightVal, onHeightChange, onWeightChange, on
       <h2 className="text-2xl font-bold text-white mb-1">Your current measurements</h2>
       <p className="text-slate-400 text-sm mb-4">Enter your height and weight — watch your body shape update live.</p>
 
-      {/* Live body visualisation */}
+
       <div className="mb-5 flex justify-center">
         <div className="w-36">
-          <BodyCard
+          <BodyPreview
             label="You right now"
             gender={gender}
             bmi={bmi}
@@ -1103,9 +1057,9 @@ function StepBodyData({ heightVal, weightVal, onHeightChange, onWeightChange, on
       </div>
 
       <div className="flex flex-col gap-4">
-        <NumberInput label="Height" unit="cm" value={heightVal} onChange={onHeightChange}
+        <NumberField label="Height" unit="cm" value={heightVal} onChange={onHeightChange}
           min={100} max={250} placeholder="e.g. 170" />
-        <NumberInput label="Current weight" unit="kg" value={weightVal} onChange={onWeightChange}
+        <NumberField label="Current weight" unit="kg" value={weightVal} onChange={onWeightChange}
           min={30} max={300} placeholder="e.g. 75" />
       </div>
       {heightVal && weightVal && !isValid && (
@@ -1122,7 +1076,7 @@ function StepBodyData({ heightVal, weightVal, onHeightChange, onWeightChange, on
   )
 }
 
-function StepTargetWeight({ currentWeight, heightCm, targetVal, onChange, onNext, gender }: {
+function TargetWeightQuestion({ currentWeight, heightCm, targetVal, onChange, onNext, gender }: {
   currentWeight?: number; heightCm?: number; targetVal: string
   onChange: (v: string) => void; onNext: () => void; gender?: 'male' | 'female'
 }) {
@@ -1138,16 +1092,16 @@ function StepTargetWeight({ currentWeight, heightCm, targetVal, onChange, onNext
         {currentWeight ? `Currently ${currentWeight} kg. ` : ''}We&apos;ll show you the transformation and calculate exactly how long it will take.
       </p>
 
-      {/* Before / After visualisation */}
+
       <div className="grid grid-cols-2 gap-3 mb-5">
-        <BodyCard
+        <BodyPreview
           label="Now"
           gender={gender}
           bmi={currentBmi}
           weightKg={currentWeight ?? 70}
           outfitColor="#F472B6"
         />
-        <BodyCard
+        <BodyPreview
           label="Goal"
           gender={gender}
           bmi={goalBmi}
@@ -1157,7 +1111,7 @@ function StepTargetWeight({ currentWeight, heightCm, targetVal, onChange, onNext
         />
       </div>
 
-      <NumberInput label="Target weight" unit="kg" value={targetVal} onChange={onChange}
+      <NumberField label="Target weight" unit="kg" value={targetVal} onChange={onChange}
         min={30} max={300} placeholder="e.g. 65" />
       <button disabled={!isValid} onClick={onNext}
         className="mt-6 w-full bg-orange-500 hover:bg-orange-600 disabled:bg-slate-700 disabled:text-slate-500
@@ -1168,7 +1122,166 @@ function StepTargetWeight({ currentWeight, heightCm, targetVal, onChange, onNext
   )
 }
 
-function StepActivity({ selected, onSelect }: { selected?: ActivityLevel; onSelect: (v: ActivityLevel) => void }) {
+function formatDateInput(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function GoalDateQuestion({
+  targetDateVal,
+  timelineWeeksVal,
+  currentWeight,
+  targetWeight,
+  onTargetDateChange,
+  onTimelineWeeksChange,
+  onNext,
+}: {
+  targetDateVal: string
+  timelineWeeksVal: string
+  currentWeight?: number
+  targetWeight?: number
+  onTargetDateChange: (v: string) => void
+  onTimelineWeeksChange: (v: string) => void
+  onNext: () => void
+}) {
+  const weeks = parseInt(timelineWeeksVal, 10)
+  const isValidWeeks = Number.isInteger(weeks) && weeks >= 2 && weeks <= 104
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(0, 0, 0, 0)
+  const minDate = formatDateInput(tomorrow)
+  const parsedTargetDate = targetDateVal ? new Date(`${targetDateVal}T00:00:00`) : null
+  const isValidDate = Boolean(parsedTargetDate && parsedTargetDate >= tomorrow)
+  const weeklyChange = currentWeight && targetWeight && isValidWeeks
+    ? Math.abs(currentWeight - targetWeight) / weeks
+    : null
+
+  function selectWeeks(nextWeeks: number) {
+    const date = new Date()
+    date.setDate(date.getDate() + nextWeeks * 7)
+    onTimelineWeeksChange(String(nextWeeks))
+    onTargetDateChange(formatDateInput(date))
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white mb-1">When do you want to reach it?</h2>
+      <p className="text-slate-400 text-sm mb-6">
+        Pick a realistic target date. We&apos;ll compare your preferred timeline with the programme projection.
+      </p>
+
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {[8, 12, 24].map((weeksOption) => (
+          <button
+            key={weeksOption}
+            onClick={() => selectWeeks(weeksOption)}
+            className={`rounded-2xl border-2 p-3 text-center transition-all ${
+              weeks === weeksOption
+                ? 'border-orange-500 bg-orange-500/10 text-orange-300'
+                : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500'
+            }`}
+          >
+            <p className="font-extrabold">{weeksOption}</p>
+            <p className="text-xs text-slate-500">weeks</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <NumberField
+          label="Plan duration"
+          unit="weeks"
+          value={timelineWeeksVal}
+          onChange={onTimelineWeeksChange}
+          min={2}
+          max={104}
+          placeholder="e.g. 12"
+        />
+        <div>
+          <label className="block text-sm font-medium text-slate-200 mb-2">Target date</label>
+          <input
+            type="date"
+            min={minDate}
+            value={targetDateVal}
+            onChange={(e) => onTargetDateChange(e.target.value)}
+            className="w-full px-4 py-3.5 border-2 border-slate-700 bg-slate-800 rounded-xl text-white focus:outline-none focus:border-orange-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      {weeklyChange !== null && (
+        <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-800 p-4">
+          <p className="text-sm font-semibold text-white">Expected pace</p>
+          <p className="mt-1 text-sm text-slate-400">
+            About {weeklyChange.toFixed(1)} kg per week based on your preferred deadline.
+          </p>
+        </div>
+      )}
+
+      <button disabled={!isValidWeeks || !isValidDate} onClick={onNext}
+        className="mt-6 w-full bg-orange-500 hover:bg-orange-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl transition-all">
+        Continue 鈫?
+      </button>
+    </div>
+  )
+}
+
+function MotivationQuestion({
+  selected,
+  detailVal,
+  onDetailChange,
+  onSelect,
+}: {
+  selected?: GoalMotivation
+  detailVal: string
+  onDetailChange: (v: string) => void
+  onSelect: (v: GoalMotivation) => void
+}) {
+  const options: { value: GoalMotivation; emoji: string; label: string; sublabel: string }[] = [
+    { value: 'wedding', emoji: '💍', label: 'Wedding', sublabel: 'Look and feel great for the big day' },
+    { value: 'conference', emoji: '🎤', label: 'Conference / event', sublabel: 'Show up with confidence' },
+    { value: 'vacation', emoji: '🏖️', label: 'Vacation', sublabel: 'Feel comfortable while travelling' },
+    { value: 'health_check', emoji: '🩺', label: 'Health check', sublabel: 'Improve health markers' },
+    { value: 'confidence', emoji: '✨', label: 'Confidence', sublabel: 'Feel better day to day' },
+    { value: 'family', emoji: '👨‍👩‍👧', label: 'Family', sublabel: 'Have more energy for people you love' },
+    { value: 'sports_event', emoji: '🏅', label: 'Sports event', sublabel: 'Prepare for a race or competition' },
+    { value: 'other', emoji: '🎯', label: 'Other', sublabel: 'Your own personal reason' },
+  ]
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white mb-1">What&apos;s your motivation?</h2>
+      <p className="text-slate-400 text-sm mb-6">
+        This helps us frame your plan around the reason you actually care about.
+      </p>
+
+      <div className="flex flex-col gap-3">
+        {options.map((o) => (
+          <ChoiceCard
+            key={o.value}
+            emoji={o.emoji}
+            label={o.label}
+            sublabel={o.sublabel}
+            selected={selected === o.value}
+            onClick={() => onSelect(o.value)}
+          />
+        ))}
+      </div>
+
+      <div className="mt-5">
+        <label className="block text-sm font-medium text-slate-200 mb-2">Optional note</label>
+        <input
+          value={detailVal}
+          onChange={(e) => onDetailChange(e.target.value.slice(0, 160))}
+          placeholder="e.g. Best friend's wedding in September"
+          className="w-full px-4 py-3.5 border-2 border-slate-700 bg-slate-800 rounded-xl text-white focus:outline-none focus:border-orange-500 transition-colors"
+        />
+        <p className="mt-1 text-xs text-slate-500">{detailVal.length}/160</p>
+      </div>
+    </div>
+  )
+}
+
+function ActivityLevelQuestion({ selected, onSelect }: { selected?: ActivityLevel; onSelect: (v: ActivityLevel) => void }) {
   const options: { value: ActivityLevel; emoji: string; label: string; sublabel: string }[] = [
     { value: 'sedentary', emoji: '🛋️', label: 'Sedentary',         sublabel: 'Little or no exercise' },
     { value: 'light',     emoji: '🚶',          label: 'Lightly active',    sublabel: 'Exercise 1-2x/week' },
@@ -1181,7 +1294,7 @@ function StepActivity({ selected, onSelect }: { selected?: ActivityLevel; onSele
       <p className="text-slate-400 text-sm mb-6">Your activity level multiplies your calorie needs.</p>
       <div className="flex flex-col gap-3">
         {options.map((o) => (
-          <OptionCard key={o.value} emoji={o.emoji} label={o.label} sublabel={o.sublabel}
+          <ChoiceCard key={o.value} emoji={o.emoji} label={o.label} sublabel={o.sublabel}
             selected={selected === o.value} onClick={() => onSelect(o.value)} />
         ))}
       </div>
@@ -1189,7 +1302,7 @@ function StepActivity({ selected, onSelect }: { selected?: ActivityLevel; onSele
   )
 }
 
-function StepDiet({ selected, onSelect }: { selected?: DietPreference; onSelect: (v: DietPreference) => void }) {
+function DietQuestion({ selected, onSelect }: { selected?: DietPreference; onSelect: (v: DietPreference) => void }) {
   const options: { value: DietPreference; emoji: string; label: string }[] = [
     { value: 'no_preference', emoji: '🍽️', label: 'No specific preference' },
     { value: 'vegetarian',    emoji: '🥦',          label: 'Vegetarian' },
@@ -1203,7 +1316,7 @@ function StepDiet({ selected, onSelect }: { selected?: DietPreference; onSelect:
       <p className="text-slate-400 text-sm mb-6">Optional -- helps tailor your nutrition recommendations.</p>
       <div className="flex flex-col gap-3">
         {options.map((o) => (
-          <OptionCard key={o.value} emoji={o.emoji} label={o.label}
+          <ChoiceCard key={o.value} emoji={o.emoji} label={o.label}
             selected={selected === o.value} onClick={() => onSelect(o.value)} />
         ))}
       </div>
@@ -1211,7 +1324,7 @@ function StepDiet({ selected, onSelect }: { selected?: DietPreference; onSelect:
   )
 }
 
-function StepEmail({ emailVal, onChange, onNext, isSaving }: {
+function EmailQuestion({ emailVal, onChange, onNext, isSaving }: {
   emailVal: string; onChange: (v: string) => void; onNext: () => void; isSaving: boolean
 }) {
   const isValidEmail = !emailVal || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)
@@ -1255,11 +1368,7 @@ function StepEmail({ emailVal, onChange, onNext, isSaving }: {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Calculating screen
-// ─────────────────────────────────────────────────────────────────────────────
-
-function BrandMoment({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
+function BrandIntro({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
   return (
     <main className="brand-moment min-h-screen bg-[#fcfbf8] text-[#2d241e]">
       <header className="border-b border-[#eee9e1] px-5 py-3 flex items-center gap-3">
@@ -1292,7 +1401,7 @@ function BrandMoment({ onBack, onContinue }: { onBack: () => void; onContinue: (
   )
 }
 
-function CalculatingScreen() {
+function LoadingPlanScreen() {
   const steps = [
     { label: 'Calculating your BMI...', done: true },
     { label: 'Computing TDEE with activity factor...', done: true },
@@ -1329,11 +1438,7 @@ function CalculatingScreen() {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Completed session choice screen
-// ─────────────────────────────────────────────────────────────────────────────
-
-function CompletedSessionScreen({
+function CompletedQuizScreen({
   sessionId,
   onStartFresh,
 }: {
@@ -1343,9 +1448,9 @@ function CompletedSessionScreen({
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
       <div className="max-w-sm w-full">
-        {/* Card */}
+
         <div className="bg-slate-800 rounded-3xl border border-slate-700 p-8 text-center shadow-2xl">
-          {/* Icon */}
+
           <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-orange-500/15 flex items-center justify-center">
             <svg className="w-10 h-10 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round"
@@ -1359,7 +1464,7 @@ function CompletedSessionScreen({
             or reset and build a new personalised plan from scratch.
           </p>
 
-          {/* View results */}
+
           <Link
             href={`/results/${sessionId}`}
             className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600
@@ -1371,7 +1476,7 @@ function CompletedSessionScreen({
             View My Results
           </Link>
 
-          {/* Start fresh */}
+
           <button
             onClick={onStartFresh}
             className="flex items-center justify-center gap-2 w-full

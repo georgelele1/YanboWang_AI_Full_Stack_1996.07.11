@@ -34,6 +34,12 @@ function makeRequest(method: string, body?: unknown): NextRequest {
   })
 }
 
+function futureDate(days = 84): string {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 const COMPLETE_STEPS = [
   { step: 1,  data: { gender: 'male' } },
   { step: 2,  data: { age: 34 } },
@@ -44,7 +50,9 @@ const COMPLETE_STEPS = [
   { step: 7,  data: { targetWeightKg: 80 } },
   { step: 8,  data: { activityLevel: 'light' } },
   { step: 9,  data: { dietPreference: 'no_preference' } },
-  { step: 10, data: {} },
+  { step: 10, data: { targetDate: futureDate(), targetTimelineWeeks: 12 } },
+  { step: 11, data: { motivation: 'conference', motivationDetail: 'Annual leadership conference' } },
+  { step: 12, data: {} },
 ]
 
 async function setupCompletedSession(withAccount = false): Promise<string> {
@@ -55,7 +63,7 @@ async function setupCompletedSession(withAccount = false): Promise<string> {
 
   const steps = withAccount
     ? COMPLETE_STEPS.map(({ step, data }) =>
-        step === 10
+        step === 12
           ? { step, data: { email: `test-${Date.now()}-${Math.random()}@example.com` } }
           : { step, data },
       )
@@ -323,7 +331,7 @@ describe('Results after payment — ACTIVE user', () => {
 
     // Attach an account after the anonymous result has been shown, then pay.
     const attachAccount = await saveStep(
-      makeRequest('PUT', { step: 10, data: { email: `upgrade-${Date.now()}@example.com` } }),
+      makeRequest('PUT', { step: 12, data: { email: `upgrade-${Date.now()}@example.com` } }),
       { params: { id } },
     )
     expect(attachAccount.status).toBe(200)

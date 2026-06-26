@@ -1,28 +1,9 @@
-/**
- * GET /api/results/:sessionId
- *
- * Access control matrix:
- * +---------------------+--------------+-------------------------------------+
- * | Condition           | Access       | Notes                               |
- * +---------------------+--------------+-------------------------------------+
- * | No email provided   | limited      | reason: no_account                  |
- * | TRIAL (active)      | limited      | BMI preview + plan selection         |
- * | TRIAL (expired)     | limited      | reason: trial_expired + promo shown |
- * |                     |              | sets session.expiresAt = +2 days    |
- * | ACTIVE (within sub) | full         |                                     |
- * | ACTIVE (expired)    | limited      | reason: sub_expired; sets EXPIRED   |
- * | EXPIRED/CANCELLED   | limited      | reason: trial_expired               |
- * | Data purged         | 410 Gone     | session.expiresAt has passed        |
- * +---------------------+--------------+-------------------------------------+
- *
- * Access decisions are centralised in src/lib/access-policy.ts.
- * medicalWarning is included in ALL access levels when BMI is outside 15-60.
- */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+
+import { NextRequest } from 'next/server'
 import { getBmiWarning } from '@/lib/validation'
-import { hasSessionAccess } from '@/lib/session-access'
+import { jsonError, serverError, jsonOk } from '@/lib/api-response'
+import { getAuthorizedSessionWithResult } from '@/lib/api-session'
 import { resolveAccess } from '@/lib/access-policy'
 import type { FullResultsResponse, FreeResultsResponse, QuizData } from '@/types/quiz'
 
@@ -31,37 +12,16 @@ export async function GET(
   { params }: { params: { sessionId: string } },
 ) {
   try {
-    const session = await prisma.session.findUnique({
-      where: { id: params.sessionId },
-      include: {
-        result: true,
-        user: { include: { subscription: true } },
-      },
-    })
-
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
-    if (!hasSessionAccess(req, session.id, session.accessTokenHash)) {
-      return NextResponse.json({ error: 'Session access denied' }, { status: 401 })
-    }
-
-    // Check if data has been purged
+    const sessionResult = await getAuthorizedSessionWithResult(req, params.sessionId)
+    if (!sessionResult.success) return jsonError(sessionResult.error, sessionResult.status)
+    const session = sessionResult.session
     if (session.expiresAt && new Date() > session.expiresAt) {
-      return NextResponse.json(
-        { error: 'Data has been deleted. Please retake the quiz.' },
-        { status: 410 },
-      )
+      return jsonError('Data has been deleted. Please retake the quiz.', 410)
     }
 
     if (!session.result) {
-      return NextResponse.json(
-        { error: 'Results not yet calculated. Complete the quiz first.' },
-        { status: 404 },
-      )
+      return jsonError('Results not yet calculated. Complete the quiz first.', 404)
     }
-
-    // Medical warning (computed from stored height/weight)
     const quizData = (session.quizData ?? {}) as QuizData
     const medicalWarning =
       typeof quizData.heightCm === 'number' && typeof quizData.weightKg === 'number'
@@ -86,12 +46,14 @@ export async function GET(
         weeksToGoal: session.result.weeksToGoal,
         targetDate: session.result.targetDate.toISOString(),
         weeklyProjection: session.result.weeklyProjection as unknown as FullResultsResponse['weeklyProjection'],
+        requestedTargetDate: quizData.targetDate,
+        requestedTimelineWeeks: quizData.targetTimelineWeeks,
+        motivation: quizData.motivation,
+        motivationDetail: quizData.motivationDetail,
         medicalWarning,
       }
-      return NextResponse.json(full)
+      return jsonOk(full)
     }
-
-    // Limited access
     const reason = decision.reason
     const dataExpiresAt = decision.dataExpiresAt
 
@@ -108,7 +70,7 @@ export async function GET(
           : 'Choose a plan to unlock your personalised programme.',
         medicalWarning,
       }
-      return NextResponse.json(limited)
+      return jsonOk(limited)
     }
 
     const sub = session.user?.subscription
@@ -126,9 +88,8 @@ export async function GET(
         : 'Your access has ended. Subscribe to regain full access.',
       medicalWarning,
     }
-    return NextResponse.json(limited)
+    return jsonOk(limited)
   } catch (err) {
-    console.error('[GET /api/results/:sessionId]', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return serverError('[GET /api/results/:sessionId]', err)
   }
 }

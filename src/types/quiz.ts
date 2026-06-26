@@ -1,23 +1,23 @@
-// Quiz domain types
 
 export type AgeGroup = '18-29' | '30-39' | '40-49' | '50+'
 export type Gender = 'male' | 'female'
 export type Goal = 'lose_weight' | 'tone_up' | 'build_strength' | 'improve_health'
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active'
 export type DietPreference = 'no_preference' | 'vegetarian' | 'vegan' | 'keto' | 'paleo'
-
-// Focus area options vary by goal (stored as string array for flexibility)
+export type GoalMotivation =
+  | 'wedding'
+  | 'conference'
+  | 'vacation'
+  | 'health_check'
+  | 'confidence'
+  | 'family'
+  | 'sports_event'
+  | 'other'
 export type FocusArea =
-  // lose_weight
   | 'belly_fat' | 'thighs_hips' | 'arms' | 'full_body_slim'
-  // tone_up
   | 'core_abs' | 'arms_shoulders' | 'legs_glutes' | 'full_body_tone'
-  // build_strength
   | 'chest_back' | 'biceps_triceps' | 'legs_power' | 'core_strength'
-  // improve_health
   | 'flexibility' | 'endurance' | 'posture' | 'stress_relief'
-
-// Activity types the user enjoys (multiple select)
 export type ActivityType =
   | 'home_workouts'
   | 'gym'
@@ -28,7 +28,7 @@ export type ActivityType =
   | 'cycling'
   | 'sports'
 
-export function ageToGroup(age: number): AgeGroup {
+export function getAgeGroup(age: number): AgeGroup {
   if (age < 30) return '18-29'
   if (age < 40) return '30-39'
   if (age < 50) return '40-49'
@@ -40,24 +40,26 @@ export interface QuizData {
   ageGroup?: AgeGroup
   gender?: Gender
   goal?: Goal
-  focusAreas?: FocusArea[]       // step 4 -- goal-dependent multiple choice
-  activityTypes?: ActivityType[] // step 5 -- activity preference multiple choice
+  focusAreas?: FocusArea[]
+  activityTypes?: ActivityType[]
   heightCm?: number
   weightKg?: number
   targetWeightKg?: number
+  targetDate?: string
+  targetTimelineWeeks?: number
+  motivation?: GoalMotivation
+  motivationDetail?: string
   activityLevel?: ActivityLevel
   dietPreference?: DietPreference
   email?: string
 }
 
-export type QuizStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+export type QuizStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
 export interface StepPayload {
   step: QuizStep
   data: Partial<QuizData>
 }
-
-// Health result types
 export type BmiCategory = 'Underweight' | 'Normal' | 'Overweight' | 'Obese'
 
 export interface WeeklyProjectionPoint {
@@ -88,40 +90,36 @@ export interface HealthAssessmentResult {
   weeklyProjection: WeeklyProjectionPoint[]
   medicalWarning?: string
 }
-
-// Workout plan types
 export type WorkoutIntensity = 'low' | 'moderate' | 'high'
 
 export interface Exercise {
   name: string
   sets: number
-  reps: string   // e.g. "12" or "30 sec" or "AMRAP"
-  rest: string   // e.g. "60 sec"
+  reps: string
+  rest: string
   notes?: string
 }
 
 export interface WorkoutDay {
-  day: number         // 1-7
-  dayName: string     // "Monday"
-  type: string        // "Upper Body Strength" | "Rest" | "HIIT Cardio" etc.
+  day: number
+  dayName: string
+  type: string
   isRest: boolean
-  duration: string    // "45 min"
+  duration: string
   intensity: WorkoutIntensity
   exercises: Exercise[]
   tips?: string
 }
 
 export interface WorkoutPlan {
-  weeks: number          // programme length in weeks
+  weeks: number
   daysPerWeek: number
   goal: Goal
   focusAreas: FocusArea[]
   activityTypes: ActivityType[]
-  schedule: WorkoutDay[] // 7 entries (Mon-Sun)
+  schedule: WorkoutDay[]
   generalTips: string[]
 }
-
-// API response types
 export interface ApiError {
   error: string
   details?: unknown
@@ -170,6 +168,10 @@ export interface FullResultsResponse {
   weeksToGoal: number
   targetDate: string
   weeklyProjection: WeeklyProjectionPoint[]
+  requestedTargetDate?: string
+  requestedTimelineWeeks?: number
+  motivation?: GoalMotivation
+  motivationDetail?: string
   medicalWarning?: string
 }
 

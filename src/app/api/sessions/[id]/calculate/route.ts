@@ -1,19 +1,12 @@
-/**
- * POST /api/sessions/:id/calculate
- *
- * Triggered after the user completes all 10 quiz steps.
- * Validates all required fields exist, runs the health assessment
- * algorithm server-side, persists the result, and marks the session complete.
- *
- * Idempotent: if results already exist, returns them without recalculating.
- */
 
-import { NextRequest, NextResponse } from 'next/server'
+
+import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { calculateHealthAssessment, validateInput } from '@/lib/health-calculator'
 import { isQuizComplete } from '@/lib/validation'
-import { hasSessionAccess } from '@/lib/session-access'
+import { jsonError, serverError, jsonOk } from '@/lib/api-response'
+import { getAuthorizedSessionWithResult } from '@/lib/api-session'
 import type { HealthAssessmentInput, QuizData } from '@/types/quiz'
 
 export async function POST(
@@ -21,47 +14,31 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   try {
-    const session = await prisma.session.findUnique({
-      where: { id: params.id },
-      include: { result: true },
-    })
-
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
-    if (!hasSessionAccess(req, session.id, session.accessTokenHash)) {
-      return NextResponse.json({ error: 'Session access denied' }, { status: 401 })
-    }
-
-    // ── Idempotency: return existing result if already calculated ──
+    const sessionResult = await getAuthorizedSessionWithResult(req, params.id)
+    if (!sessionResult.success) return jsonError(sessionResult.error, sessionResult.status)
+    const session = sessionResult.session
     if (session.result) {
       await prisma.session.update({
         where: { id: params.id },
         data: { isCompleted: true },
       })
-      return NextResponse.json({
+      return jsonOk({
         sessionId: session.id,
         resultId: session.result.id,
         alreadyCalculated: true,
       })
     }
-
-    // ── Validate data completeness ─────────────────────────────────
     const quizData = (session.quizData ?? {}) as QuizData
 
     if (!isQuizComplete(quizData)) {
-      return NextResponse.json(
-        {
-          error: 'Incomplete quiz data',
-          details: 'All steps must be completed before calculating results',
-        },
-        { status: 422 },
+      return jsonError(
+        'Incomplete quiz data',
+        422,
+        'All steps must be completed before calculating results',
       )
     }
-
-    // ── Deep validation via health-calculator ──────────────────────
     const input: HealthAssessmentInput = {
-      age: quizData.age!,           // exact age — used in BMR calculation
+      age: quizData.age!,
       gender: quizData.gender!,
       goal: quizData.goal!,
       heightCm: quizData.heightCm!,
@@ -72,16 +49,9 @@ export async function POST(
 
     const validationErrors = validateInput(input)
     if (validationErrors.length > 0) {
-      return NextResponse.json(
-        { error: 'Invalid quiz data', details: validationErrors },
-        { status: 422 },
-      )
+      return jsonError('Invalid quiz data', 422, validationErrors)
     }
-
-    // ── Run health assessment ──────────────────────────────────────
     const result = calculateHealthAssessment(input)
-
-    // ── Persist result + mark session complete (atomic) ────────────
     const [healthResult] = await prisma.$transaction([
       prisma.healthResult.create({
         data: {
@@ -104,12 +74,11 @@ export async function POST(
       }),
     ])
 
-    return NextResponse.json({
+    return jsonOk({
       sessionId: session.id,
       resultId: healthResult.id,
-    }, { status: 201 })
+    }, 201)
   } catch (err) {
-    console.error('[POST /api/sessions/:id/calculate]', err)
-    return NextResponse.json({ error: 'Calculation failed' }, { status: 500 })
+    return serverError('[POST /api/sessions/:id/calculate]', err, 'Calculation failed')
   }
 }

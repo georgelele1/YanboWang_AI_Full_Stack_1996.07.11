@@ -1,9 +1,4 @@
-/**
- * Health Assessment Calculator
- *
- * Uses exact age (not age group midpoint) for all BMR calculations.
- * AgeGroup is kept only for display/analytics -- never used in maths.
- */
+
 
 import type {
   ActivityLevel,
@@ -15,10 +10,6 @@ import type {
   WeeklyProjectionPoint,
 } from '@/types/quiz'
 import { getBmiWarning } from '@/lib/validation'
-
-// =============================================================================
-// Constants
-// =============================================================================
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -36,10 +27,6 @@ const FAT_CALORIE_PERCENT = 0.28
 const KCAL_PER_G_PROTEIN = 4
 const KCAL_PER_G_FAT = 9
 const KCAL_PER_G_CARB = 4
-
-// =============================================================================
-// Validation
-// =============================================================================
 
 export interface ValidationError {
   field: string
@@ -84,11 +71,6 @@ export function validateInput(input: Partial<HealthAssessmentInput>): Validation
   } else if (!Number.isFinite(input.targetWeightKg) || input.targetWeightKg < 30 || input.targetWeightKg > 300) {
     errors.push({ field: 'targetWeightKg', message: 'Target weight must be between 30 kg and 300 kg' })
   }
-
-  // Note: extreme BMI triggers a medical advisory warning, NOT a hard error.
-  // Users can still proceed. See getBmiWarning() in validation.ts.
-
-  // Cross-field: goal / target weight validations
   if (errors.length === 0 && input.weightKg !== undefined && input.targetWeightKg !== undefined && input.goal) {
     const weightDiff = input.weightKg - input.targetWeightKg
 
@@ -118,10 +100,6 @@ export function validateInput(input: Partial<HealthAssessmentInput>): Validation
   return errors
 }
 
-// =============================================================================
-// BMI
-// =============================================================================
-
 export function calculateBmi(weightKg: number, heightCm: number): number {
   const heightM = heightCm / 100
   return weightKg / (heightM * heightM)
@@ -134,10 +112,6 @@ export function getBmiCategory(bmi: number): BmiCategory {
   return 'Obese'
 }
 
-// =============================================================================
-// BMR -- Mifflin-St Jeor using exact age
-// =============================================================================
-
 export function calculateBmr(
   weightKg: number,
   heightCm: number,
@@ -148,17 +122,9 @@ export function calculateBmr(
   return gender === 'male' ? base + 5 : base - 161
 }
 
-// =============================================================================
-// TDEE
-// =============================================================================
-
 export function calculateTdee(bmr: number, activityLevel: ActivityLevel): number {
   return bmr * ACTIVITY_MULTIPLIERS[activityLevel]
 }
-
-// =============================================================================
-// Target calories
-// =============================================================================
 
 export function calculateTargetCalories(tdee: number, goal: Goal, gender: Gender): number {
   let target: number
@@ -172,10 +138,6 @@ export function calculateTargetCalories(tdee: number, goal: Goal, gender: Gender
   const min = gender === 'male' ? MIN_DAILY_CALORIES_MALE : MIN_DAILY_CALORIES_FEMALE
   return Math.max(Math.round(target), min)
 }
-
-// =============================================================================
-// Macros
-// =============================================================================
 
 export interface MacroBreakdown {
   proteinGrams: number
@@ -192,10 +154,6 @@ export function calculateMacros(dailyCalories: number, weightKg: number): MacroB
   const carbGrams = Math.max(0, Math.round(carbCalories / KCAL_PER_G_CARB))
   return { proteinGrams, fatGrams, carbGrams }
 }
-
-// =============================================================================
-// Timeline
-// =============================================================================
 
 export function calculateTimeline(
   currentWeightKg: number,
@@ -236,7 +194,7 @@ export function generateWeeklyProjection(
   return points
 }
 
-/** Ascending projection for muscle-gain goals. */
+
 export function generateGainProjection(
   startWeightKg: number,
   targetWeightKg: number,
@@ -255,7 +213,7 @@ export function generateGainProjection(
   return points
 }
 
-/** Flat projection for maintenance / recomposition programs. */
+
 export function generateFlatProjection(
   weightKg: number,
   programWeeks: number,
@@ -266,10 +224,6 @@ export function generateFlatProjection(
   }))
 }
 
-// =============================================================================
-// Main entry point
-// =============================================================================
-
 export function calculateHealthAssessment(input: HealthAssessmentInput): HealthAssessmentResult {
   const { age, gender, goal, heightCm, weightKg, targetWeightKg, activityLevel } = input
 
@@ -279,36 +233,30 @@ export function calculateHealthAssessment(input: HealthAssessmentInput): HealthA
   const tdee = calculateTdee(bmr, activityLevel)
   const dailyCalories = calculateTargetCalories(tdee, goal, gender)
   const { proteinGrams, fatGrams, carbGrams } = calculateMacros(dailyCalories, weightKg)
-
-  // ── Goal-specific timeline ───────────────────────────────────────────────
   let weeksToGoal: number
   let weeklyWeightLossForecast: number
   let weeklyProjection: WeeklyProjectionPoint[]
 
   if (goal === 'lose_weight' || (goal === 'tone_up' && targetWeightKg < weightKg)) {
-    // Deficit path: user is losing weight
     const timeline = calculateTimeline(weightKg, targetWeightKg, tdee, dailyCalories)
     weeksToGoal = timeline.weeksToGoal
     weeklyWeightLossForecast = timeline.weeklyWeightLossForecast
     weeklyProjection = generateWeeklyProjection(weightKg, targetWeightKg, weeklyWeightLossForecast, weeksToGoal)
 
   } else if (goal === 'build_strength' && targetWeightKg > weightKg) {
-    // Gain path: user is building mass to a higher target
     const dailySurplus = Math.max(dailyCalories - tdee, 50)
     const weeklyGainKg = parseFloat(((dailySurplus * 7) / KCAL_PER_KG_FAT).toFixed(2))
     const gainKg = targetWeightKg - weightKg
     weeksToGoal = Math.min(Math.ceil(gainKg / weeklyGainKg), 104)
-    weeklyWeightLossForecast = -weeklyGainKg  // negative = gaining
+    weeklyWeightLossForecast = -weeklyGainKg
     weeklyProjection = generateGainProjection(weightKg, targetWeightKg, weeklyGainKg, weeksToGoal)
 
   } else if (goal === 'improve_health' || goal === 'tone_up') {
-    // Maintenance / recomposition: 12-week program
     weeksToGoal = 12
     weeklyWeightLossForecast = 0
     weeklyProjection = generateFlatProjection(weightKg, 12)
 
   } else {
-    // build_strength with target <= current: 16-week recomposition
     weeksToGoal = 16
     weeklyWeightLossForecast = 0
     weeklyProjection = generateFlatProjection(weightKg, 16)

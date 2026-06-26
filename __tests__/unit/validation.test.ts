@@ -1,7 +1,7 @@
 /**
  * Unit tests for request-level validation helpers.
  *
- * Quiz now has 10 steps:
+ * Quiz now has 12 steps:
  *  1  Gender
  *  2  Age
  *  3  Goal
@@ -11,10 +11,18 @@
  *  7  Target Weight
  *  8  Activity Level
  *  9  Diet Preference
- * 10  Email
+ * 10  Goal timeline / target date
+ * 11  Motivation
+ * 12  Email
  */
 
 import { validateStepData, safeFloat, safeInt, mergeQuizData, isQuizComplete } from '@/lib/validation'
+
+function futureDate(days = 84): string {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
 
 // =============================================================================
 // safeFloat
@@ -375,25 +383,57 @@ describe('validateStepData - step 9 (dietPreference)', () => {
   })
 })
 
-describe('validateStepData - step 10 (email)', () => {
+describe('validateStepData - step 10 (timeline)', () => {
+  test('accepts valid target date and timeline', () => {
+    expect(validateStepData(10, { targetDate: futureDate(), targetTimelineWeeks: 12 })).toHaveLength(0)
+  })
+
+  test('rejects missing timeline', () => {
+    expect(validateStepData(10, { targetDate: futureDate() })).toHaveLength(1)
+  })
+
+  test('rejects too-short timeline', () => {
+    expect(validateStepData(10, { targetDate: futureDate(), targetTimelineWeeks: 1 })).toHaveLength(1)
+  })
+
+  test('rejects malformed date', () => {
+    expect(validateStepData(10, { targetDate: 'next summer', targetTimelineWeeks: 12 })).toHaveLength(1)
+  })
+})
+
+describe('validateStepData - step 11 (motivation)', () => {
+  test('accepts valid motivation', () => {
+    expect(validateStepData(11, { motivation: 'wedding' })).toHaveLength(0)
+  })
+
+  test('accepts motivation detail', () => {
+    expect(validateStepData(11, { motivation: 'conference', motivationDetail: 'Annual event' })).toHaveLength(0)
+  })
+
+  test('rejects invalid motivation', () => {
+    expect(validateStepData(11, { motivation: 'lottery' })).toHaveLength(1)
+  })
+})
+
+describe('validateStepData - step 12 (email)', () => {
   test('accepts valid email', () => {
-    expect(validateStepData(10, { email: 'test@example.com' })).toHaveLength(0)
+    expect(validateStepData(12, { email: 'test@example.com' })).toHaveLength(0)
   })
 
   test('accepts missing email (optional)', () => {
-    expect(validateStepData(10, {})).toHaveLength(0)
+    expect(validateStepData(12, {})).toHaveLength(0)
   })
 
   test('accepts empty string (skip)', () => {
-    expect(validateStepData(10, { email: '' })).toHaveLength(0)
+    expect(validateStepData(12, { email: '' })).toHaveLength(0)
   })
 
   test('rejects malformed email', () => {
-    expect(validateStepData(10, { email: 'not-an-email' })).toHaveLength(1)
+    expect(validateStepData(12, { email: 'not-an-email' })).toHaveLength(1)
   })
 
   test('rejects email with spaces', () => {
-    expect(validateStepData(10, { email: 'a b@c.com' })).toHaveLength(1)
+    expect(validateStepData(12, { email: 'a b@c.com' })).toHaveLength(1)
   })
 })
 
@@ -402,8 +442,8 @@ describe('validateStepData - invalid step number', () => {
     expect(validateStepData(0, {})).toHaveLength(1)
   })
 
-  test('rejects step 11', () => {
-    expect(validateStepData(11, {})).toHaveLength(1)
+  test('rejects step 13', () => {
+    expect(validateStepData(13, {})).toHaveLength(1)
   })
 })
 
@@ -462,6 +502,9 @@ describe('isQuizComplete', () => {
     heightCm: 175,
     weightKg: 90,
     targetWeightKg: 75,
+    targetDate: futureDate(),
+    targetTimelineWeeks: 12,
+    motivation: 'confidence' as const,
     activityLevel: 'moderate' as const,
   }
 

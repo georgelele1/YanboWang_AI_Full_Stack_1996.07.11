@@ -25,12 +25,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Progress bar animation */
+
 .progress-bar {
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Option card hover states */
+
 .option-card {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -44,7 +44,7 @@ body {
   background-color: #f0fdf4;
 }
 
-/* Smooth step transitions */
+
 .step-enter {
   animation: fadeSlideIn 0.35s ease-out forwards;
 }
@@ -60,14 +60,14 @@ body {
   }
 }
 
-/* Blur paywall effect */
+
 .paywall-blur {
   filter: blur(6px);
   user-select: none;
   pointer-events: none;
 }
 
-/* Loading spinner */
+
 .spinner {
   border: 3px solid #e5e7eb;
   border-top-color: var(--brand-primary);
@@ -79,7 +79,7 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* BMI gauge */
+
 .bmi-track {
   background: linear-gradient(to right, #3b82f6, #22c55e, #f59e0b, #ef4444);
   border-radius: 9999px;
@@ -104,7 +104,7 @@ body {
   color: #64748b;
 }
 
-/* Warm, editorial onboarding system. */
+
 .onboarding-step > div > h2 {
   color: #2d241e;
   font-size: 2rem;
@@ -144,7 +144,7 @@ body {
   color: #a1968b;
 }
 
-/* Hide the legacy static badge copy and expose the real paid access state. */
+
 .subscription-status {
   font-size: 0;
 }

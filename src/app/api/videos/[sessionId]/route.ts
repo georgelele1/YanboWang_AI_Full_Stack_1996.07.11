@@ -1,26 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { hasSessionAccess } from '@/lib/session-access'
+import { jsonError, serverError, jsonOk } from '@/lib/api-response'
+import { getAuthorizedSession } from '@/lib/api-session'
 
-/**
- * Video-library access is intentionally stricter than plan/result access:
- * a free trial can use the product, but only ACTIVE paid subscriptions receive
- * every playback URL. Everyone else can watch the curated preview videos.
- */
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { sessionId: string } },
 ) {
   try {
-    const session = await prisma.session.findUnique({
-      where: { id: params.sessionId },
-      include: { user: { include: { subscription: true } } },
-    })
-
-    if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    if (!hasSessionAccess(req, session.id, session.accessTokenHash)) {
-      return NextResponse.json({ error: 'Session access denied' }, { status: 401 })
-    }
+    const sessionResult = await getAuthorizedSession(req, params.sessionId)
+    if (!sessionResult.success) return jsonError(sessionResult.error, sessionResult.status)
+    const session = sessionResult.session
 
     const now = new Date()
     const subscription = session.user?.subscription
@@ -32,7 +23,7 @@ export async function GET(
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     })
 
-    return NextResponse.json({
+    return jsonOk({
       access: isSubscriber ? 'subscriber' : 'free',
       previewCount: records.filter((video) => video.isFreePreview).length,
       videos: records.map((video) => ({
@@ -48,7 +39,6 @@ export async function GET(
       })),
     })
   } catch (error) {
-    console.error('[GET /api/videos/:sessionId]', error)
-    return NextResponse.json({ error: 'Failed to load video library' }, { status: 500 })
+    return serverError('[GET /api/videos/:sessionId]', error, 'Failed to load video library')
   }
 }

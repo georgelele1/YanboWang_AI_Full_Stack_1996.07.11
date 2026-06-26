@@ -15,7 +15,7 @@ type NavItem = {
   requiresSession?: boolean
 }
 
-function sessionFromPath(pathname: string): string | null {
+function getSessionIdFromPath(pathname: string): string | null {
   const m = pathname.match(/\/(results|plan)\/([^/?#]+)/)
   return m ? m[2] : null
 }
@@ -28,7 +28,7 @@ export default function AppSidebar() {
   const router   = useRouter()
 
   useEffect(() => {
-    const fromPath = sessionFromPath(pathname)
+    const fromPath = getSessionIdFromPath(pathname)
     if (fromPath) {
       setSessionId(fromPath)
       try { localStorage.setItem(SESSION_KEY, fromPath) } catch {}
@@ -54,7 +54,7 @@ export default function AppSidebar() {
     return () => { document.body.style.overflow = "" }
   }, [open])
 
-  const handleLogout = useCallback(async () => {
+  const logout = useCallback(async () => {
     setLoggingOut(true)
     try {
       await fetch("/api/logout", { method: "POST" })
@@ -120,7 +120,7 @@ export default function AppSidebar() {
 
   return (
     <>
-      {/* Floating trigger */}
+
       {!onQuizPage && (
         <button
           onClick={() => setOpen(true)}
@@ -136,7 +136,7 @@ export default function AppSidebar() {
         </button>
       )}
 
-      {/* Backdrop */}
+
       <div
         onClick={() => setOpen(false)}
         className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm
@@ -144,7 +144,7 @@ export default function AppSidebar() {
                     ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       />
 
-      {/* Panel */}
+
       <aside
         className={`fixed top-0 right-0 h-full w-80 z-50
                     bg-gradient-to-b from-slate-800 via-slate-800 to-slate-900
@@ -152,7 +152,7 @@ export default function AppSidebar() {
                     transition-transform duration-300 ease-out
                     ${open ? "translate-x-0" : "translate-x-full"}`}
       >
-        {/* Header */}
+
         <div className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-slate-700 px-5 pt-12 pb-6 overflow-hidden">
           <div className="absolute -top-6 -right-6 w-32 h-32 bg-slate-800/10 rounded-full" />
           <div className="absolute top-8 -right-10 w-20 h-20 bg-slate-800/10 rounded-full" />
@@ -186,7 +186,7 @@ export default function AppSidebar() {
           )}
         </div>
 
-        {/* Nav */}
+
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-1">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 mb-3">Navigate</p>
           {mainNav.map((item) => {
@@ -245,12 +245,12 @@ export default function AppSidebar() {
             </Link>
           ))}
 
-          {/* Logout */}
+
           {sessionId && (
             <>
               <div className="border-t border-slate-700 my-4" />
               <button
-                onClick={handleLogout}
+                onClick={logout}
                 disabled={loggingOut}
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl
                            text-red-500 hover:bg-red-50 hover:text-red-600
@@ -270,7 +270,7 @@ export default function AppSidebar() {
           )}
         </div>
 
-        {/* Footer */}
+
         <div className="px-5 py-4 border-t border-slate-700">
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-500">HealthPath v1.0</p>

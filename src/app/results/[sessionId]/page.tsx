@@ -4,12 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import type { FreeResultsResponse, FullResultsResponse, ResultsResponse } from '@/types/quiz'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BMI Gauge
-// ─────────────────────────────────────────────────────────────────────────────
-
-function BmiGauge({ bmi, category }: { bmi: number; category: string }) {
-  // Map BMI 15–40 to 0–100%
+function BmiCard({ bmi, category }: { bmi: number; category: string }) {
   const pct = Math.min(100, Math.max(0, ((bmi - 15) / 25) * 100))
   const colors: Record<string, string> = {
     Underweight: 'text-blue-600',
@@ -40,10 +35,6 @@ function BmiGauge({ bmi, category }: { bmi: number; category: string }) {
     </div>
   )
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Macro donut (simple CSS trick)
-// ─────────────────────────────────────────────────────────────────────────────
 
 function MacroCard({
   proteinGrams, carbGrams, fatGrams, dailyCalories,
@@ -83,11 +74,7 @@ function MacroCard({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Timeline chart (SVG line chart)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function TimelineChart({
+function WeightChart({
   projection, targetDate,
 }: {
   projection: { week: number; weightKg: number }[]
@@ -127,7 +114,7 @@ function TimelineChart({
         </div>
       </div>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
-        {/* Area fill */}
+
         <path d={areaD} fill="url(#chartGradient)" opacity="0.3" />
         <defs>
           <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
@@ -135,22 +122,22 @@ function TimelineChart({
             <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {/* Line */}
+
         <path d={pathD} stroke="#22c55e" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        {/* X axis */}
+
         <line x1={PAD.left} y1={H - PAD.bottom} x2={W - PAD.right} y2={H - PAD.bottom}
           stroke="#e5e7eb" strokeWidth="1" />
-        {/* Y labels */}
+
         {[minW + 1, maxW - 1].map((w) => (
           <text key={w} x={PAD.left - 4} y={yScale(w) + 4} textAnchor="end"
             fontSize="10" fill="#9ca3af">{Math.round(w)}</text>
         ))}
-        {/* X labels */}
+
         {[0, Math.round(maxWeek / 2), maxWeek].map((wk) => (
           <text key={wk} x={xScale(wk)} y={H - PAD.bottom + 16} textAnchor="middle"
             fontSize="10" fill="#9ca3af">w{wk}</text>
         ))}
-        {/* End dot */}
+
         <circle
           cx={xScale(projection[projection.length - 1].week)}
           cy={yScale(projection[projection.length - 1].weightKg)}
@@ -161,18 +148,63 @@ function TimelineChart({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Paywall overlay
-// ─────────────────────────────────────────────────────────────────────────────
+function getMotivationText(value?: string) {
+  const labels: Record<string, string> = {
+    wedding: 'Wedding',
+    conference: 'Conference / event',
+    vacation: 'Vacation',
+    health_check: 'Health check',
+    confidence: 'Confidence',
+    family: 'Family',
+    sports_event: 'Sports event',
+    other: 'Personal goal',
+  }
+  return value ? labels[value] ?? value : 'Personal goal'
+}
 
-function PaywallBanner({
+function GoalContextPanel({ data }: { data: FullResultsResponse }) {
+  const requested = data.requestedTargetDate ? new Date(data.requestedTargetDate) : null
+  const projected = new Date(data.targetDate)
+  const isAggressive = requested ? requested.getTime() < projected.getTime() : false
+
+  return (
+    <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-sm p-5">
+      <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">Your Goal Context</h3>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-slate-800/80 p-3">
+          <p className="text-xs text-slate-500">Your target date</p>
+          <p className="mt-1 font-bold text-white">
+            {requested ? requested.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}
+          </p>
+        </div>
+        <div className="rounded-xl bg-slate-800/80 p-3">
+          <p className="text-xs text-slate-500">Plan projection</p>
+          <p className="mt-1 font-bold text-orange-400">
+            {projected.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 rounded-xl bg-slate-800/80 p-3">
+        <p className="text-xs text-slate-500">Motivation</p>
+        <p className="mt-1 font-bold text-white">{getMotivationText(data.motivation)}</p>
+        {data.motivationDetail && <p className="mt-1 text-sm text-slate-400">{data.motivationDetail}</p>}
+      </div>
+      {isAggressive && (
+        <p className="mt-3 text-sm text-amber-300">
+          Your preferred deadline is faster than the conservative projection. Keep the date as motivation, but use the weekly progress trend as the safer guide.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function UpgradeBanner({
   sessionId,
 }: {
   sessionId: string
 }) {
   const router = useRouter()
   const loading = false
-  // Kept only for the visual plan preview; checkout itself lives at /subscribe.
   const [plan, setPlan] = useState<'monthly' | 'yearly'>('yearly')
   const [email, setEmail] = useState('')
   const [needsEmail] = useState(false)
@@ -196,7 +228,7 @@ function PaywallBanner({
           </div>
         )}
 
-        {/* Email capture (shown only when needed) */}
+
         {needsEmail && (
           <div className="mb-4">
             <label className="block text-xs font-medium text-slate-200 mb-1.5">
@@ -214,7 +246,7 @@ function PaywallBanner({
           </div>
         )}
 
-        {/* Plan selector */}
+
         <div className="flex gap-2 mb-4">
           {(['monthly', 'yearly'] as const).map((p) => (
             <button
@@ -258,10 +290,6 @@ function PaywallBanner({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Results Page
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function ResultsPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const router = useRouter()
@@ -269,7 +297,7 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function fetchResults() {
+  async function loadResults() {
     try {
       const res = await fetch(`/api/results/${sessionId}`)
       if (res.status === 404) {
@@ -289,8 +317,7 @@ export default function ResultsPage() {
   }
 
   useEffect(() => {
-    if (sessionId) fetchResults()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (sessionId) loadResults()
   }, [sessionId])
 
   if (loading) {
@@ -324,7 +351,7 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 pb-20">
-      {/* Header */}
+
       <header className="bg-slate-900 border-b border-slate-800 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -345,7 +372,7 @@ export default function ResultsPage() {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-5">
-        {/* Headline */}
+
         <div>
           <h1 className="text-2xl font-extrabold text-white">Your Health Assessment</h1>
           <p className="text-slate-400 text-sm mt-1">
@@ -353,17 +380,17 @@ export default function ResultsPage() {
           </p>
         </div>
 
-        {/* BMI */}
-        <BmiGauge bmi={results.bmi} category={results.bmiCategory} />
 
-        {/* Daily calories teaser (always visible) */}
+        <BmiCard bmi={results.bmi} category={results.bmiCategory} />
+
+
         <div className="bg-orange-500/100 text-white rounded-2xl p-5 shadow-lg shadow-orange-500/30">
           <p className="text-orange-200 text-sm font-medium mb-1">Your daily calorie target</p>
           <p className="text-5xl font-extrabold">{results.dailyCalories}</p>
           <p className="text-orange-200 text-sm mt-1">calories / day</p>
         </div>
 
-        {/* Full content or blurred paywall */}
+
         {isFull && fullData ? (
           <>
             <MacroCard
@@ -372,6 +399,8 @@ export default function ResultsPage() {
               fatGrams={fullData.fatGrams}
               dailyCalories={fullData.dailyCalories}
             />
+
+            <GoalContextPanel data={fullData} />
 
             <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-sm p-5">
               <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide mb-3">Timeline</h3>
@@ -411,7 +440,7 @@ export default function ResultsPage() {
               </div>
             </div>
 
-            <TimelineChart
+            <WeightChart
               projection={fullData.weeklyProjection}
               targetDate={fullData.targetDate}
             />
@@ -434,7 +463,6 @@ export default function ResultsPage() {
             </button>
           </>
         ) : (
-          // Blurred preview when limited
           <div>
             <div className="relative rounded-2xl overflow-hidden">
               <div className="blur-sm pointer-events-none opacity-50 space-y-4">
@@ -449,7 +477,7 @@ export default function ResultsPage() {
               </div>
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/60 to-white" />
             </div>
-            <PaywallBanner sessionId={sessionId} />
+            <UpgradeBanner sessionId={sessionId} />
           </div>
         )}
     </main>

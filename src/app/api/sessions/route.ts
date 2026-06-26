@@ -1,16 +1,13 @@
-/**
- * POST /api/sessions
- * Creates a new anonymous quiz session (no user yet -- email collected at step 8).
- * Idempotent via clientId.
- */
 
-import { NextRequest, NextResponse } from 'next/server'
+
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createSessionAccessToken, setSessionAccessCookie, hasSessionAccess } from '@/lib/session-access'
+import { jsonError, serverError, jsonOk, readBody } from '@/lib/api-response'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}))
+    const body = await readBody<{ clientId?: string }>(req)
     const clientId: string | undefined = body?.clientId
 
     if (clientId) {
@@ -19,20 +16,15 @@ export async function POST(req: NextRequest) {
         include: { user: { include: { subscription: true } } },
       })
       if (existing) {
-        // Re-issue is only allowed if the caller already holds a valid cookie
-        // for this session. Without this check, anyone who guesses a session ID
-        // could hijack it by calling POST /api/sessions with that clientId.
         if (!hasSessionAccess(req, existing.id, existing.accessTokenHash)) {
-          return NextResponse.json({ error: 'Session access denied' }, { status: 401 })
+          return jsonError('Session access denied', 401)
         }
-        // Issue a fresh token so the browser gets a valid auth cookie even if
-        // the original was lost (e.g. page refresh on same device).
         const access = createSessionAccessToken()
         await prisma.session.update({
           where: { id: clientId },
           data: { accessTokenHash: access.hash },
         })
-        const response = NextResponse.json(toSessionResponse(existing), { status: 200 })
+        const response = jsonOk(buildSessionResponse(existing), 200)
         setSessionAccessCookie(response, existing.id, access.token)
         return response
       }
@@ -48,12 +40,11 @@ export async function POST(req: NextRequest) {
       include: { user: { include: { subscription: true } } },
     })
 
-    const response = NextResponse.json(toSessionResponse(session), { status: 201 })
+    const response = jsonOk(buildSessionResponse(session), 201)
     setSessionAccessCookie(response, session.id, access.token)
     return response
   } catch (err) {
-    console.error('[POST /api/sessions]', err)
-    return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
+    return serverError('[POST /api/sessions]', err, 'Failed to create session')
   }
 }
 
@@ -70,10 +61,7 @@ type SessionResponseSource = {
     } | null
   } | null
 }
-
-// Kept private to this route module: App Router route files may only export
-// supported handlers and route configuration.
-function toSessionResponse(session: SessionResponseSource) {
+function buildSessionResponse(session: SessionResponseSource) {
   const sub = session.user?.subscription ?? null
   const now = new Date()
 

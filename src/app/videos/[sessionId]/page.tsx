@@ -10,7 +10,7 @@ type Video = {
 
 type Library = { access: 'free' | 'subscriber'; previewCount: number; videos: Video[] }
 
-function minutes(seconds: number) {
+function formatMinutes(seconds: number) {
   return `${Math.ceil(seconds / 60)} min`
 }
 
@@ -49,7 +49,7 @@ export default function VideosPage() {
       <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {library.videos.map((video) => <article key={video.id} className="overflow-hidden rounded-3xl border border-slate-700 bg-slate-800">
           <div className="relative h-48"><img src={video.thumbnailUrl} alt="" className={`h-full w-full object-cover object-top ${video.isLocked ? 'opacity-40' : ''}`} />{video.isLocked && <div className="absolute inset-0 grid place-items-center"><span className="rounded-full bg-slate-900/90 px-4 py-2 text-sm font-bold">🔒 Premium</span></div>}</div>
-          <div className="p-5"><div className="flex justify-between text-xs text-orange-400"><span>{video.category}</span><span>{minutes(video.durationSeconds)}</span></div><h2 className="mt-2 font-bold text-lg">{video.title}</h2><p className="mt-2 h-10 text-sm text-slate-400">{video.description}</p>{video.isLocked ? <button onClick={() => router.push(`/subscribe?session=${sessionId}`)} className="mt-4 w-full rounded-xl border border-orange-500/60 py-3 text-sm font-bold text-orange-400">Unlock all videos</button> : <button onClick={() => setSelectedVideo(video)} className="mt-4 w-full rounded-xl bg-orange-500 py-3 text-sm font-bold">Play video</button>}</div>
+          <div className="p-5"><div className="flex justify-between text-xs text-orange-400"><span>{video.category}</span><span>{formatMinutes(video.durationSeconds)}</span></div><h2 className="mt-2 font-bold text-lg">{video.title}</h2><p className="mt-2 h-10 text-sm text-slate-400">{video.description}</p>{video.isLocked ? <button onClick={() => router.push(`/subscribe?session=${sessionId}`)} className="mt-4 w-full rounded-xl border border-orange-500/60 py-3 text-sm font-bold text-orange-400">Unlock all videos</button> : <button onClick={() => setSelectedVideo(video)} className="mt-4 w-full rounded-xl bg-orange-500 py-3 text-sm font-bold">Play video</button>}</div>
         </article>)}
       </div>
     </section>

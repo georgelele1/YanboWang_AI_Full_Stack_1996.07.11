@@ -1,26 +1,16 @@
-/**
- * POST /api/cleanup
- *
- * Purges expired sessions -- sessions where expiresAt has passed.
- * In production this would be called by a cron job (e.g. Vercel Cron,
- * GitHub Actions schedule, or pg_cron). Safe to call repeatedly (idempotent).
- *
- * Deleting the Session cascades to HealthResult via onDelete: Cascade.
- * The User record is kept -- they may return and retake the quiz.
- */
 
-import { NextRequest, NextResponse } from 'next/server'
+
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { jsonError, serverError, jsonOk } from '@/lib/api-response'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
 export async function POST(req: NextRequest) {
-  // If CRON_SECRET is configured, require it as a Bearer token.
-  // Allows unauthenticated calls only in local dev (no secret set).
   if (CRON_SECRET) {
     const auth = req.headers.get('authorization')
     if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return jsonError('Unauthorized', 401)
     }
   }
   try {
@@ -32,12 +22,11 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({
+    return jsonOk({
       purged: count,
       ranAt: now.toISOString(),
     })
   } catch (err) {
-    console.error('[POST /api/cleanup]', err)
-    return NextResponse.json({ error: 'Cleanup failed' }, { status: 500 })
+    return serverError('[POST /api/cleanup]', err, 'Cleanup failed')
   }
 }

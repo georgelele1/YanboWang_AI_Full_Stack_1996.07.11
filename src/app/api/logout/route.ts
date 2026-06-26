@@ -1,15 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { jsonOk } from '@/lib/api-response'
 
-/**
- * POST /api/logout
- * Clears all healthpath_session_* cookies so the browser forgets the session.
- * The session itself is NOT deleted from the database -- data is preserved
- * in case the user returns via the same localStorage clientId.
- */
+
 export async function POST(req: NextRequest) {
-  const response = NextResponse.json({ success: true })
-
-  // Clear every cookie that matches the healthpath session pattern
+  const response = jsonOk({ success: true })
   const allCookies = req.cookies.getAll()
   for (const cookie of allCookies) {
     if (cookie.name.startsWith('healthpath_session_')) {

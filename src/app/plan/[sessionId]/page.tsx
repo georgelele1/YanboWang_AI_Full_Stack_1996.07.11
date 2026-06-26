@@ -10,7 +10,7 @@ const INTENSITY_COLOR: Record<string, string> = {
   high:     'bg-red-100 text-red-700',
 }
 
-function ExerciseRow({ ex }: { ex: { name: string; sets: number; reps: string; rest: string; notes?: string } }) {
+function ExerciseItem({ ex }: { ex: { name: string; sets: number; reps: string; rest: string; notes?: string } }) {
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-slate-700 last:border-0">
       <div className="w-2 h-2 rounded-full bg-orange-500/100 mt-1.5 shrink-0" />
@@ -26,7 +26,7 @@ function ExerciseRow({ ex }: { ex: { name: string; sets: number; reps: string; r
   )
 }
 
-function DayCard({ day, index }: { day: WorkoutDay; index: number }) {
+function WorkoutDayCard({ day, index }: { day: WorkoutDay; index: number }) {
   const [open, setOpen] = useState(index === 0)
   return (
     <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-sm overflow-hidden">
@@ -55,7 +55,7 @@ function DayCard({ day, index }: { day: WorkoutDay; index: number }) {
       </button>
       {open && (
         <div className="px-4 pb-4">
-          {day.exercises.map((ex, i) => <ExerciseRow key={i} ex={ex} />)}
+          {day.exercises.map((ex, i) => <ExerciseItem key={i} ex={ex} />)}
           {day.tips && (
             <div className="mt-3 bg-blue-50 rounded-xl px-3 py-2.5">
               <p className="text-xs text-blue-700">💡 {day.tips}</p>
@@ -67,11 +67,11 @@ function DayCard({ day, index }: { day: WorkoutDay; index: number }) {
   )
 }
 
-function PaywallBanner({ sessionId, totalDays, shown }: { sessionId: string; totalDays: number; shown: number }) {
+function UpgradeBanner({ sessionId, totalDays, shown }: { sessionId: string; totalDays: number; shown: number }) {
   const router = useRouter()
   return (
     <div className="relative mt-2">
-      {/* Blurred teaser */}
+
       <div className="rounded-2xl overflow-hidden relative">
         <div className="blur-sm pointer-events-none select-none opacity-60 space-y-3">
           {Array.from({ length: totalDays - shown }).map((_, i) => (
@@ -89,7 +89,7 @@ function PaywallBanner({ sessionId, totalDays, shown }: { sessionId: string; tot
           ))}
         </div>
 
-        {/* Overlay CTA */}
+
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900 via-slate-900/90 to-transparent px-6 pt-12">
           <div className="text-center">
             <div className="text-3xl mb-3">🔒</div>
@@ -163,7 +163,7 @@ export default function PlanPage() {
 
   return (
     <div className="min-h-screen bg-slate-900">
-      {/* Header */}
+
       <header className="px-4 py-4 max-w-lg mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-7 h-7 bg-orange-500/100 rounded-lg flex items-center justify-center">
@@ -183,7 +183,7 @@ export default function PlanPage() {
       </header>
 
       <main className="px-4 pb-12 max-w-lg mx-auto">
-        {/* Hero */}
+
         <div className="text-center py-6">
           <div className="text-4xl mb-2">🏋️</div>
           <h1 className="text-2xl font-bold text-white">Your {plan.weeks}-Week Programme</h1>
@@ -192,7 +192,7 @@ export default function PlanPage() {
           </p>
         </div>
 
-        {/* Summary chips */}
+
         <div className="flex flex-wrap gap-2 justify-center mb-6">
           {plan.activityTypes.map(t => (
             <span key={t} className="bg-orange-500/15 text-orange-400 text-xs font-medium px-3 py-1 rounded-full capitalize">
@@ -201,7 +201,7 @@ export default function PlanPage() {
           ))}
         </div>
 
-        {/* General tips */}
+
         <div className="bg-amber-900/20 border border-amber-200 rounded-2xl p-4 mb-6">
           <p className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-2">Programme Tips</p>
           {plan.generalTips.map((tip, i) => (
@@ -217,7 +217,7 @@ export default function PlanPage() {
           <span className="text-orange-400">→</span>
         </button>
 
-        {/* Weekly schedule label */}
+
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-bold text-slate-100">Weekly Schedule</h2>
           {access === 'limited' && (
@@ -227,19 +227,19 @@ export default function PlanPage() {
           )}
         </div>
 
-        {/* Day cards */}
+
         <div className="space-y-3">
           {plan.schedule.map((day, i) => (
-            <DayCard key={day.day} day={day} index={i} />
+            <WorkoutDayCard key={day.day} day={day} index={i} />
           ))}
         </div>
 
-        {/* Paywall */}
+
         {access === 'limited' && (
-          <PaywallBanner sessionId={sessionId} totalDays={totalDays} shown={shownDays} />
+          <UpgradeBanner sessionId={sessionId} totalDays={totalDays} shown={shownDays} />
         )}
 
-        {/* Full access footer */}
+
         {access === 'full' && (
           <div className="mt-6 bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4 text-center">
             <p className="text-orange-400 text-sm font-semibold">✅ Full programme unlocked</p>
